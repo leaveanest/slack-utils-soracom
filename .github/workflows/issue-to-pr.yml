@@ -1,0 +1,82 @@
+name: Issue to PR with Claude Code
+
+on:
+  issues:
+    types:
+      - labeled
+      - assigned
+  issue_comment:
+    types:
+      - created
+
+jobs:
+  implement_with_claude:
+    # claude-ready ラベルが付与された場合、または Issue への @claude メンションがあった場合に実行
+    # Note: issue_comment はPRコメントでも発火するため、PRは除外する
+    if: |
+      (github.event_name == 'issues' && github.event.label.name == 'claude-ready') ||
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') && github.event.issue.pull_request == null)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Claude Code Action
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          trigger_phrase: "@claude"
+          label_trigger: "claude-ready"
+          branch_prefix: "claude/"
+          claude_args: |
+            --allowedTools "Bash(deno:*),Bash(deno task:*),Bash(git:*)"
+          prompt: |
+            GitHub Issue #${{ github.event.issue.number }} を実装してください。
+
+            **重要**: コミットメッセージ、PRタイトル、PR本文は全て日本語で記述してください。
+
+            ## Issue情報
+            **タイトル**: ${{ github.event.issue.title }}
+
+            **内容**:
+            ${{ github.event.issue.body }}
+
+            ## Step 1: プロジェクトルールの確認（必須）
+            実装を始める前に、以下のファイルを必ず読んでプロジェクトのルールを理解してください：
+            - `CLAUDE.md` - コーディング規約、i18n、テスト、例外処理のルール
+            - `docs/testing-guide.md` - テストの書き方
+            - `docs/i18n-guide.md` - 多言語対応の方法
+
+            ## Step 2: 実装
+            CLAUDE.mdのルールに従ってコードを実装してください：
+            - 新しい関数には必ずJSDocコメントを追加
+            - 新しい関数には必ずテストファイルを作成
+            - ユーザー向けメッセージは `t()` 関数でi18n化
+            - 入力値は Zod でバリデーション
+            - API呼び出しは必ず `response.ok` をチェック
+
+            ## Step 3: 品質チェック（必須）
+            PRを作成する前に、以下のコマンドを全て実行して成功することを確認してください：
+            ```bash
+            deno task fmt      # フォーマット
+            deno task lint     # リント
+            deno task test     # 全テスト実行
+            deno task i18n:check  # i18n整合性チェック
+            ```
+
+            **重要**: 上記のいずれかが失敗した場合は、修正してから再度実行してください。
+            全てパスするまでPRを作成しないでください。
+
+            ## Step 4: PRの作成
+            全てのチェックがパスしたら、PRを作成してください。
+
+            ## コミットメッセージ形式
+            feat: #${{ github.event.issue.number }} ${{ github.event.issue.title }}
+          track_progress: true

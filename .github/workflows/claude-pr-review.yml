@@ -1,0 +1,90 @@
+name: Claude PR Review
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+  pull_request_review_comment:
+    types:
+      - created
+  issue_comment:
+    types:
+      - created
+
+jobs:
+  review:
+    # PR作成・更新時、または @claude メンションがあった場合に実行
+    # Note: PRへの通常コメントは issue_comment イベントで発火（pull_request != null で判定）
+    if: |
+      (github.event_name == 'pull_request') ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') && github.event.issue.pull_request != null)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # 修正・コミット用に write に変更
+      pull-requests: write
+      issues: write
+      id-token: write
+    steps:
+      - name: Get PR head SHA (for issue_comment)
+        id: get-pr-sha
+        if: github.event_name == 'issue_comment'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PR_URL="${{ github.event.issue.pull_request.url }}"
+          PR_SHA=$(gh api "$PR_URL" --jq '.head.sha')
+          echo "sha=$PR_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # PRのHEADをチェックアウト（イベントタイプに応じて取得方法が異なる）
+          ref: ${{ github.event.pull_request.head.sha || steps.get-pr-sha.outputs.sha || github.ref }}
+
+      - name: Claude Code Action
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          trigger_phrase: "@claude"
+          claude_args: |
+            --allowedTools "Bash(deno:*),Bash(deno task:*),Bash(git:*)"
+          prompt: |
+            このPRをレビューし、問題があれば修正してください。
+
+            **重要**: コメント、コミットメッセージは全て日本語で記述してください。
+
+            ## Step 1: プロジェクトルールの確認
+            まず以下のファイルを読んで、このプロジェクトのルールを理解してください：
+            - `CLAUDE.md` - コーディング規約、i18n、テスト、例外処理のルール
+
+            ## Step 2: レビュー観点
+            CLAUDE.mdのルールに基づいて、以下の観点でレビューしてください：
+
+            ### 必須チェック項目
+            - [ ] **JSDoc**: 新しい公開関数にJSDocコメントがあるか
+            - [ ] **テスト**: 新しい関数にテストファイルがあるか
+            - [ ] **i18n**: エラーメッセージやユーザー向けメッセージが `t()` 関数でi18n化されているか
+            - [ ] **バリデーション**: 入力値が Zod でバリデーションされているか
+            - [ ] **例外処理**: API呼び出しで `response.ok` がチェックされているか
+            - [ ] **型安全性**: TypeScriptの型が適切に定義されているか（暗黙的なanyがないか）
+
+            ### 追加チェック項目
+            - [ ] **セキュリティ**: 脆弱性がないか（インジェクション、XSSなど）
+            - [ ] **パフォーマンス**: 明らかな非効率がないか
+
+            ## Step 3: 問題の修正
+            問題が見つかった場合は、以下の手順で修正してください：
+            1. コードを修正
+            2. `deno task fmt` でフォーマット
+            3. `deno task lint` でリントチェック
+            4. `deno task test` でテスト実行
+            5. 全てパスしたらコミット＆プッシュ
+
+            ## Step 4: 出力形式
+            - チェック項目ごとに ✅ または ❌ で結果を示してください
+            - 修正した内容をまとめてください
+            - 修正できなかった問題があれば理由を説明してください
+          include_fix_links: true
