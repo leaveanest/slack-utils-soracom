@@ -257,6 +257,40 @@ export function createStatsPeriodSchema() {
 }
 
 /**
+ * i18n対応のソラカメデバイスIDスキーマを生成
+ * 形式: 英数字とハイフン
+ *
+ * @returns Zodスキーマ
+ *
+ * @example
+ * ```typescript
+ * const schema = createSoraCamDeviceIdSchema();
+ * const deviceId = schema.parse("7CXXXXXXXXXX");
+ * ```
+ */
+export function createSoraCamDeviceIdSchema() {
+  return z.string().superRefine((val, ctx) => {
+    if (val.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.too_small,
+        minimum: 1,
+        type: "string",
+        inclusive: true,
+        message: t("soracom.errors.validation.soracam_device_id_empty"),
+      });
+      return;
+    }
+    if (!/^[A-Za-z0-9-]+$/.test(val)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.invalid_string,
+        validation: "regex",
+        message: t("soracom.errors.validation.soracam_device_id_format"),
+      });
+    }
+  });
+}
+
+/**
  * Soracom SIM ID スキーマ（デフォルトインスタンス）
  */
 export const simIdSchema = createSimIdSchema();
@@ -277,6 +311,11 @@ export const coverageTypeSchema = createCoverageTypeSchema();
 export const statsPeriodSchema = createStatsPeriodSchema();
 
 /**
+ * ソラカメデバイスID スキーマ（デフォルトインスタンス）
+ */
+export const soraCamDeviceIdSchema = createSoraCamDeviceIdSchema();
+
+/**
  * 型推論のエクスポート
  */
 export type ChannelId = z.infer<ReturnType<typeof createChannelIdSchema>>;
@@ -288,3 +327,6 @@ export type SimId = z.infer<ReturnType<typeof createSimIdSchema>>;
 export type Imsi = z.infer<ReturnType<typeof createImsiSchema>>;
 export type CoverageType = z.infer<ReturnType<typeof createCoverageTypeSchema>>;
 export type StatsPeriod = z.infer<ReturnType<typeof createStatsPeriodSchema>>;
+export type SoraCamDeviceId = z.infer<
+  ReturnType<typeof createSoraCamDeviceIdSchema>
+>;

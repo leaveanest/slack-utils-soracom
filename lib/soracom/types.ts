@@ -87,6 +87,84 @@ export interface AirStatsResult {
 }
 
 /**
+ * Harvest Dataエントリ
+ */
+export interface HarvestDataEntry {
+  /** データ受信日時（UNIXタイムスタンプミリ秒） */
+  time: number;
+  /** データ内容（JSON） */
+  content: Record<string, unknown>;
+  /** コンテントタイプ */
+  contentType: string;
+}
+
+/**
+ * Harvest Dataクエリ結果
+ */
+export interface HarvestDataResult {
+  /** IMSI */
+  imsi: string;
+  /** データエントリ一覧 */
+  entries: HarvestDataEntry[];
+}
+
+/**
+ * ソラカメデバイス情報
+ */
+export interface SoraCamDevice {
+  /** デバイスID */
+  deviceId: string;
+  /** デバイス名 */
+  name: string;
+  /** デバイスの状態（"online" | "offline"） */
+  status: string;
+  /** ファームウェアバージョン */
+  firmwareVersion: string;
+  /** 最終オンライン日時（UNIXタイムスタンプミリ秒） */
+  lastConnectedTime: number;
+}
+
+/**
+ * ソラカメイベント情報
+ */
+export interface SoraCamEvent {
+  /** デバイスID */
+  deviceId: string;
+  /** イベント種別（"motion" | "sound" | "person" 等） */
+  eventType: string;
+  /** イベント発生日時（UNIXタイムスタンプミリ秒） */
+  eventTime: number;
+  /** イベントの詳細情報 */
+  eventInfo: Record<string, unknown>;
+}
+
+/**
+ * ソラカメ画像エクスポートリクエスト
+ */
+export interface SoraCamImageExportRequest {
+  /** エクスポート対象の日時（UNIXタイムスタンプミリ秒） */
+  time: number;
+}
+
+/**
+ * ソラカメ画像エクスポート結果
+ */
+export interface SoraCamImageExport {
+  /** エクスポートID */
+  exportId: string;
+  /** デバイスID */
+  deviceId: string;
+  /** エクスポートの状態（"completed" | "processing" | "failed"） */
+  status: string;
+  /** エクスポートされた画像のURL */
+  url: string;
+  /** リクエスト日時 */
+  requestedTime: number;
+  /** 完了日時 */
+  completedTime: number;
+}
+
+/**
  * Soracom APIエラーレスポンス
  */
 export interface SoracomApiError {

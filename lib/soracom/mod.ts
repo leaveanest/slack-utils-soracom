@@ -9,8 +9,13 @@ export type { SoracomClientConfig } from "./client.ts";
 export type {
   AirStatsDataPoint,
   AirStatsResult,
+  HarvestDataEntry,
+  HarvestDataResult,
   SoracomApiError,
   SoracomAuthResponse,
+  SoraCamDevice,
+  SoraCamEvent,
+  SoraCamImageExport,
   SoracomSim,
   SoracomSimListResult,
 } from "./types.ts";

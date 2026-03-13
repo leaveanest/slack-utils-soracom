@@ -41,7 +41,9 @@
         "imsi_empty": "IMSI cannot be empty",
         "imsi_format": "IMSI must be exactly 15 digits",
         "coverage_type_invalid": "Coverage type must be 'jp' or 'g'",
-        "stats_period_invalid": "Stats period must be 'day' or 'month'"
+        "stats_period_invalid": "Stats period must be 'day' or 'month'",
+      "soracam_device_id_empty": "SoraCam device ID cannot be empty",
+      "soracam_device_id_format": "SoraCam device ID must be alphanumeric with hyphens"
       }
     },
     "messages": {
@@ -57,13 +59,34 @@
       "air_usage_download": "Download: {bytes}",
       "air_usage_total": "Total: Upload {upload}, Download {download}",
       "no_sims_found": "No SIMs found",
-      "no_stats_found": "No usage data found for the specified period"
+      "no_stats_found": "No usage data found for the specified period",
+      "harvest_data_header": "Harvest Data for IMSI: {imsi} ({count} entries)",
+      "harvest_data_entry": "{time}: {content}",
+      "harvest_no_data": "No Harvest data found for the specified period",
+      "soracam_device_list_header": "SoraCam Devices ({count} devices)",
+      "soracam_device_name": "Name: {name}",
+      "soracam_device_status": "Status: {status}",
+      "soracam_device_firmware": "Firmware: {version}",
+      "soracam_device_last_connected": "Last Connected: {time}",
+      "soracam_no_devices": "No SoraCam devices found",
+      "soracam_events_header": "SoraCam Events for Device: {deviceId} ({count} events)",
+      "soracam_event_type": "Type: {type}",
+      "soracam_event_time": "Time: {time}",
+      "soracam_no_events": "No events found for the specified period",
+      "soracam_image_export_requested": "Image export requested for device: {deviceId}",
+      "soracam_image_export_status": "Export Status: {status}",
+      "soracam_image_export_url": "Image URL: {url}",
+      "soracam_image_export_processing": "Image export is still processing (Export ID: {exportId})"
     },
     "logs": {
       "fetching_sims": "Fetching SIM list from Soracom...",
       "fetching_sim_detail": "Fetching SIM details for: {simId}",
       "fetching_air_usage": "Fetching air usage stats for IMSI: {imsi}",
-      "auth_success": "Soracom authentication successful"
+      "auth_success": "Soracom authentication successful",
+      "fetching_harvest_data": "Fetching Harvest data for IMSI: {imsi}",
+      "fetching_soracam_devices": "Fetching SoraCam device list...",
+      "fetching_soracam_events": "Fetching SoraCam events for device: {deviceId}",
+      "exporting_soracam_image": "Exporting SoraCam image for device: {deviceId}"
     }
   }
 }

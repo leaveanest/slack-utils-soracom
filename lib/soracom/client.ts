@@ -19,8 +19,13 @@ import { t } from "../i18n/mod.ts";
 import type {
   AirStatsDataPoint,
   AirStatsResult,
+  HarvestDataEntry,
+  HarvestDataResult,
   SoracomApiError,
   SoracomAuthResponse,
+  SoraCamDevice,
+  SoraCamEvent,
+  SoraCamImageExport,
   SoracomSim,
   SoracomSimListResult,
 } from "./types.ts";
@@ -237,6 +242,156 @@ export class SoracomClient {
       dataPoints,
       period,
     };
+  }
+
+  /**
+   * Harvest Dataからデバイスデータを取得します
+   *
+   * @param imsi - IMSI
+   * @param from - 開始日時（UNIXタイムスタンプミリ秒）
+   * @param to - 終了日時（UNIXタイムスタンプミリ秒）
+   * @param sort - ソート順（"asc" または "desc"）
+   * @param limit - 取得件数（デフォルト: 100）
+   * @returns Harvest Dataエントリ一覧
+   * @throws {Error} API呼び出しに失敗した場合
+   *
+   * @example
+   * ```typescript
+   * const now = Date.now();
+   * const oneHourAgo = now - 60 * 60 * 1000;
+   * const data = await client.getHarvestData("44010...", oneHourAgo, now);
+   * ```
+   */
+  async getHarvestData(
+    imsi: string,
+    from: number,
+    to: number,
+    sort: "asc" | "desc" = "desc",
+    limit = 100,
+  ): Promise<HarvestDataResult> {
+    const params = new URLSearchParams({
+      from: String(from),
+      to: String(to),
+      sort,
+      limit: String(limit),
+    });
+
+    const response = await this.request(
+      `/data/Subscriber/${imsi}?${params.toString()}`,
+    );
+    const entries: HarvestDataEntry[] = await response.json();
+
+    return { imsi, entries };
+  }
+
+  /**
+   * ソラカメデバイス一覧を取得します
+   *
+   * @returns ソラカメデバイス一覧
+   * @throws {Error} API呼び出しに失敗した場合
+   *
+   * @example
+   * ```typescript
+   * const devices = await client.listSoraCamDevices();
+   * console.log(`デバイス数: ${devices.length}`);
+   * ```
+   */
+  async listSoraCamDevices(): Promise<SoraCamDevice[]> {
+    const response = await this.request("/sora_cam/devices");
+    const devices: SoraCamDevice[] = await response.json();
+    return devices;
+  }
+
+  /**
+   * 指定したソラカメデバイスのイベント一覧を取得します
+   *
+   * @param deviceId - デバイスID
+   * @param from - 開始日時（UNIXタイムスタンプミリ秒）
+   * @param to - 終了日時（UNIXタイムスタンプミリ秒）
+   * @param limit - 取得件数（デフォルト: 20）
+   * @returns イベント一覧
+   * @throws {Error} API呼び出しに失敗した場合
+   *
+   * @example
+   * ```typescript
+   * const now = Date.now();
+   * const oneHourAgo = now - 60 * 60 * 1000;
+   * const events = await client.getSoraCamEvents("device-id", oneHourAgo, now);
+   * ```
+   */
+  async getSoraCamEvents(
+    deviceId: string,
+    from: number,
+    to: number,
+    limit = 20,
+  ): Promise<SoraCamEvent[]> {
+    const params = new URLSearchParams({
+      from: String(from),
+      to: String(to),
+      limit: String(limit),
+    });
+
+    const response = await this.request(
+      `/sora_cam/devices/${deviceId}/events?${params.toString()}`,
+    );
+    const events: SoraCamEvent[] = await response.json();
+    return events;
+  }
+
+  /**
+   * ソラカメの録画から画像をエクスポートします
+   *
+   * @param deviceId - デバイスID
+   * @param time - エクスポート対象の日時（UNIXタイムスタンプミリ秒）
+   * @returns エクスポートリクエスト結果
+   * @throws {Error} API呼び出しに失敗した場合
+   *
+   * @example
+   * ```typescript
+   * const exportResult = await client.exportSoraCamImage("device-id", Date.now());
+   * console.log(`Export ID: ${exportResult.exportId}`);
+   * ```
+   */
+  async exportSoraCamImage(
+    deviceId: string,
+    time: number,
+  ): Promise<SoraCamImageExport> {
+    const response = await this.request(
+      `/sora_cam/devices/${deviceId}/images/exports`,
+      {
+        method: "POST",
+        body: JSON.stringify({ time }),
+      },
+    );
+    const result: SoraCamImageExport = await response.json();
+    return result;
+  }
+
+  /**
+   * ソラカメ画像エクスポートの結果を取得します
+   *
+   * @param deviceId - デバイスID
+   * @param exportId - エクスポートID
+   * @returns エクスポート結果（URLを含む）
+   * @throws {Error} API呼び出しに失敗した場合
+   *
+   * @example
+   * ```typescript
+   * const result = await client.getSoraCamImageExport("device-id", "export-id");
+   * if (result.status === "completed") {
+   *   console.log(`画像URL: ${result.url}`);
+   * }
+   * ```
+   */
+  async getSoraCamImageExport(
+    deviceId: string,
+    exportId: string,
+  ): Promise<SoraCamImageExport> {
+    const response = await this.request(
+      `/sora_cam/devices/${deviceId}/images/exports/${exportId}`,
+    );
+    const result: SoraCamImageExport = await response.json();
+    return result;
   }
 }
 

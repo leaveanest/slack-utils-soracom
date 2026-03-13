@@ -13,10 +13,12 @@ import {
   createImsiSchema,
   createNonEmptyStringSchema,
   createSimIdSchema,
+  createSoraCamDeviceIdSchema,
   createUserIdSchema,
   imsiSchema,
   nonEmptyStringSchema,
   simIdSchema,
+  soraCamDeviceIdSchema,
   statsPeriodSchema,
   userIdSchema,
 } from "./schemas.ts";
@@ -376,6 +378,48 @@ Deno.test({
     if (!result.success) {
       assertEquals(
         result.error.errors[0].message.includes("IMSI"),
+        true,
+      );
+    }
+    setLocale(originalLocale);
+  },
+});
+
+// === SoraCam デバイスID バリデーションテスト ===
+
+Deno.test("soraCamDeviceIdSchema: 正常なデバイスIDを検証", () => {
+  const result = soraCamDeviceIdSchema.safeParse("7C12345678AB");
+  assertEquals(result.success, true);
+});
+
+Deno.test("soraCamDeviceIdSchema: ハイフン付きデバイスIDを検証", () => {
+  const result = soraCamDeviceIdSchema.safeParse("7C-1234-5678-AB");
+  assertEquals(result.success, true);
+});
+
+Deno.test("soraCamDeviceIdSchema: 空文字を拒否", () => {
+  const result = soraCamDeviceIdSchema.safeParse("");
+  assertEquals(result.success, false);
+});
+
+Deno.test("soraCamDeviceIdSchema: 特殊文字を含むIDを拒否", () => {
+  const result = soraCamDeviceIdSchema.safeParse("7C@#$%");
+  assertEquals(result.success, false);
+});
+
+Deno.test({
+  name: "soraCamDeviceIdSchema: エラーメッセージが英語で表示される",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: () => {
+    setLocale("en");
+    const schema = createSoraCamDeviceIdSchema();
+    const result = schema.safeParse("invalid@device");
+
+    assertEquals(result.success, false);
+    if (!result.success) {
+      assertEquals(
+        result.error.errors[0].message.includes("SoraCam"),
         true,
       );
     }

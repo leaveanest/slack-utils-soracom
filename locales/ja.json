@@ -41,7 +41,9 @@
         "imsi_empty": "IMSIを空にすることはできません",
         "imsi_format": "IMSIは15桁の数字である必要があります",
         "coverage_type_invalid": "カバレッジタイプは 'jp' または 'g' である必要があります",
-        "stats_period_invalid": "統計期間は 'day' または 'month' である必要があります"
+        "stats_period_invalid": "統計期間は 'day' または 'month' である必要があります",
+        "soracam_device_id_empty": "ソラカメデバイスIDを空にすることはできません",
+        "soracam_device_id_format": "ソラカメデバイスIDは英数字とハイフンである必要があります"
       }
     },
     "messages": {
@@ -57,13 +59,34 @@
       "air_usage_download": "ダウンロード: {bytes}",
       "air_usage_total": "合計: アップロード {upload}, ダウンロード {download}",
       "no_sims_found": "SIMが見つかりません",
-      "no_stats_found": "指定期間の通信量データが見つかりません"
+      "no_stats_found": "指定期間の通信量データが見つかりません",
+      "harvest_data_header": "Harvest Data IMSI: {imsi} ({count}件)",
+      "harvest_data_entry": "{time}: {content}",
+      "harvest_no_data": "指定期間のHarvestデータが見つかりません",
+      "soracam_device_list_header": "ソラカメデバイス一覧 ({count}台)",
+      "soracam_device_name": "名前: {name}",
+      "soracam_device_status": "状態: {status}",
+      "soracam_device_firmware": "ファームウェア: {version}",
+      "soracam_device_last_connected": "最終接続: {time}",
+      "soracam_no_devices": "ソラカメデバイスが見つかりません",
+      "soracam_events_header": "ソラカメイベント デバイス: {deviceId} ({count}件)",
+      "soracam_event_type": "種別: {type}",
+      "soracam_event_time": "日時: {time}",
+      "soracam_no_events": "指定期間のイベントが見つかりません",
+      "soracam_image_export_requested": "デバイス {deviceId} の画像エクスポートをリクエストしました",
+      "soracam_image_export_status": "エクスポート状態: {status}",
+      "soracam_image_export_url": "画像URL: {url}",
+      "soracam_image_export_processing": "画像エクスポート処理中です（エクスポートID: {exportId}）"
     },
     "logs": {
       "fetching_sims": "SoracomからSIM一覧を取得中...",
       "fetching_sim_detail": "SIM詳細情報を取得中: {simId}",
       "fetching_air_usage": "通信量統計を取得中 IMSI: {imsi}",
-      "auth_success": "Soracom認証に成功しました"
+      "auth_success": "Soracom認証に成功しました",
+      "fetching_harvest_data": "Harvestデータを取得中 IMSI: {imsi}",
+      "fetching_soracam_devices": "ソラカメデバイス一覧を取得中...",
+      "fetching_soracam_events": "ソラカメイベントを取得中 デバイス: {deviceId}",
+      "exporting_soracam_image": "ソラカメ画像をエクスポート中 デバイス: {deviceId}"
     }
   }
 }
