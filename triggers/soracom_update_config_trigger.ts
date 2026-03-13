@@ -5,23 +5,20 @@ import SoracomUpdateConfigWorkflow from "../workflows/soracom_update_config_work
 /**
  * Soracom設定更新トリガー（ショートカット）
  *
- * Slack上から設定値を更新するためのショートカットトリガーです。
- * config_keyとconfig_valueはワークフロー実行時に入力します。
+ * ショートカットから起動し、モーダルフォームで設定を更新します。
+ * チャンネル内で「Soracom Config」を選択すると設定画面が開きます。
  */
 const SoracomUpdateConfigTrigger: Trigger<
   typeof SoracomUpdateConfigWorkflow.definition
 > = {
   type: TriggerTypes.Shortcut,
-  name: "Soracom Config Update",
-  description: "Update Soracom configuration values",
+  name: "Soracom Config",
+  description: "Configure Soracom notification channels",
   workflow:
     `#/workflows/${SoracomUpdateConfigWorkflow.definition.callback_id}`,
   inputs: {
-    config_key: {
-      value: "",
-    },
-    config_value: {
-      value: "",
+    interactivity: {
+      value: TriggerContextData.Shortcut.interactivity,
     },
     channel_id: {
       value: TriggerContextData.Shortcut.channel_id,
