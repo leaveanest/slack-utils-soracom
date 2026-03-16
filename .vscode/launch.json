@@ -2,7 +2,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Debug Slack Function",
+      "name": "Debug Soracom List Sims Function",
       "type": "node",
       "request": "launch",
       "cwd": "${workspaceFolder}",
@@ -12,7 +12,7 @@
         "--inspect-wait",
         "--allow-all"
       ],
-      "program": "${workspaceFolder}/functions/example_function/mod.ts",
+      "program": "${workspaceFolder}/functions/soracom_list_sims/mod.ts",
       "attachSimplePort": 9229,
       "outputCapture": "console"
     },

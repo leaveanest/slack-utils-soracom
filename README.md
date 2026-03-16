@@ -134,7 +134,6 @@ slack run workflows/soracom_list_sims_workflow
 
 | Function | 用途 |
 | -------- | ---- |
-| [`functions/example_function/mod.ts`](functions/example_function/mod.ts) | サンプル Function |
 | [`functions/soracom_list_sims/mod.ts`](functions/soracom_list_sims/mod.ts) | SIM 一覧を取得 |
 | [`functions/soracom_get_sim/mod.ts`](functions/soracom_get_sim/mod.ts) | SIM 詳細を取得 |
 | [`functions/soracom_get_air_usage/mod.ts`](functions/soracom_get_air_usage/mod.ts) | Air 通信量を取得 |
@@ -189,7 +188,7 @@ export async function retrieveChannelSummary(
 }
 ```
 
-参考実装: [`functions/example_function/`](functions/example_function/)
+参考実装: [`functions/soracom_list_sims/`](functions/soracom_list_sims/)
 
 ## 多言語対応（I18n）
 

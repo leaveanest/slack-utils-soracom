@@ -1,5 +1,4 @@
 import { Manifest } from "deno-slack-sdk/mod.ts";
-import { ExampleFunctionDefinition } from "./functions/example_function/mod.ts";
 import { SoracomListSimsFunctionDefinition } from "./functions/soracom_list_sims/mod.ts";
 import { SoracomGetSimFunctionDefinition } from "./functions/soracom_get_sim/mod.ts";
 import { SoracomGetAirUsageFunctionDefinition } from "./functions/soracom_get_air_usage/mod.ts";
@@ -55,7 +54,6 @@ export default Manifest({
     SoracomConfigDatastore,
   ],
   functions: [
-    ExampleFunctionDefinition,
     // SIM管理
     SoracomListSimsFunctionDefinition,
     SoracomGetSimFunctionDefinition,
