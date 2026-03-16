@@ -1,12 +1,34 @@
 # slack-utils-soracom
 
-SORACOM 向けの Slack Workflow / Function をまとめた Deno ベースの Slack アプリです。
+SORACOM を利用した現場運用を Slack 上で支援する custom step / Function 集です。
 
 ## 概要
 
-- Slack 上から SORACOM の SIM、Air、Harvest Data、SoraCam 関連の操作を実行できます。
-- 複数の Slack Workflow、Function、Trigger を 1 つのアプリとして管理できます。
-- Slack Deno SDK v2.x を利用し、関数・ワークフロー・トリガーを一貫して管理します。
+- SIM 状態監視、通信量レポート、Harvest Data 活用、SoraCam 連携を Slack
+  に統合します。
+- 単純な API
+  実行だけでなく、定時確認、状況共有、現場確認、定期レポートといった運用ユースケースを中心に設計します。
+- 再利用可能な custom step / Function を中心に、必要に応じて Workflow
+  を組み合わせられます。
+- Slack Deno SDK v2.x を利用し、Function と Workflow を一貫して管理します。
+
+## 設計方針
+
+このリポジトリでは、Slack
+上で実際に使われる運用シナリオを中心に機能を整理します。
+
+- `Function`: custom step として再利用する中心的な部品
+- `Workflow`: Function を組み合わせたサンプルや推奨フロー
+- `lib/`: SORACOM API クライアントや共通ロジック
+
+単純な API ラッパーは基盤部品として扱い、Slack から見える機能は
+「確認する」「報告する」「振り返る」といった運用行為に寄せていきます。
+また、リアルタイム性が必要な通知処理は SORACOM
+起点の別システムに分離し、このリポジトリでは定時実行での確認、要約、現場共有に向いた
+Function / Workflow を優先します。SORACOM 本体が直接提供する Slack
+通知機能ですでに代替できるものは、原則としてそのまま再実装しません。ここでの比較対象に
+`SORACOM Flux` は含めません。 Trigger
+はこのリポジトリの主役ではなく、必要に応じて利用者が作成するものとして扱います。
 
 ## 前提条件
 
@@ -48,7 +70,7 @@ SLACK_APP_DESCRIPTION=SORACOM utilities for Slack  # アプリの説明
 SLACK_CATEGORY=Soracom                      # カテゴリ名
 ```
 
-これらの変数は、ワークフロー、ファンクション、トリガーの名前や説明に自動的に反映されます。
+これらの変数は、ワークフローやファンクションの名前や説明に自動的に反映されます。
 
 ### slack.json 設定
 
@@ -105,46 +127,124 @@ deno coverage cov --html
 slack run workflows/soracom_list_sims_workflow
 ```
 
-- `functions/soracom_list_sims/mod.ts` は SORACOM API から SIM 一覧を取得します。
-- `workflows/soracom_list_sims_workflow.ts` は上記 Function を利用して Slack から実行できます。
-- `triggers/soracom_list_sims_trigger.ts` を Slack CLI で登録すると、ショートカットからワークフローを呼び出せます。
+- `functions/` には、SORACOM API や Slack 投稿を扱う再利用可能な custom step
+  を配置します。
+- `workflows/`
+  には、運用シナリオに沿って複数の部品を組み合わせたサンプルや推奨フローを定義します。
+- `triggers/`
+  は任意です。必要な場合だけ、利用者ごとにショートカットや定期実行を設定します。
 
-## Workflow / Function 一覧
+## Function / Workflow 一覧
 
-このリポジトリで提供している Workflow と Function の一覧です。最新の定義は
-`manifest.ts` を参照してください。
-
-### Workflows
-
-| Workflow | 用途 |
-| -------- | ---- |
-| [`workflows/soracom_list_sims_workflow.ts`](workflows/soracom_list_sims_workflow.ts) | SIM 一覧を取得 |
-| [`workflows/soracom_get_sim_workflow.ts`](workflows/soracom_get_sim_workflow.ts) | SIM 詳細を取得 |
-| [`workflows/soracom_get_air_usage_workflow.ts`](workflows/soracom_get_air_usage_workflow.ts) | Air 通信量を取得 |
-| [`workflows/soracom_get_harvest_data_workflow.ts`](workflows/soracom_get_harvest_data_workflow.ts) | Harvest Data を取得 |
-| [`workflows/soracom_list_soracam_devices_workflow.ts`](workflows/soracom_list_soracam_devices_workflow.ts) | SoraCam デバイス一覧を取得 |
-| [`workflows/soracom_get_soracam_events_workflow.ts`](workflows/soracom_get_soracam_events_workflow.ts) | SoraCam イベントを取得 |
-| [`workflows/soracom_export_soracam_image_workflow.ts`](workflows/soracom_export_soracam_image_workflow.ts) | SoraCam 画像をエクスポート |
-| [`workflows/soracom_sim_anomaly_alert_workflow.ts`](workflows/soracom_sim_anomaly_alert_workflow.ts) | SIM 異常検知アラートを実行 |
-| [`workflows/soracom_soracam_motion_capture_workflow.ts`](workflows/soracom_soracam_motion_capture_workflow.ts) | SoraCam モーションキャプチャを実行 |
-| [`workflows/soracom_sim_usage_report_workflow.ts`](workflows/soracom_sim_usage_report_workflow.ts) | SIM 利用レポートを生成 |
-| [`workflows/soracom_update_config_workflow.ts`](workflows/soracom_update_config_workflow.ts) | SORACOM 設定を更新 |
+このリポジトリで提供している Function と Workflow
+を、運用ユースケースの観点で整理しています。最新の定義は `manifest.ts`
+を参照してください。
 
 ### Functions
 
-| Function | 用途 |
-| -------- | ---- |
-| [`functions/soracom_list_sims/mod.ts`](functions/soracom_list_sims/mod.ts) | SIM 一覧を取得 |
-| [`functions/soracom_get_sim/mod.ts`](functions/soracom_get_sim/mod.ts) | SIM 詳細を取得 |
-| [`functions/soracom_get_air_usage/mod.ts`](functions/soracom_get_air_usage/mod.ts) | Air 通信量を取得 |
-| [`functions/soracom_get_harvest_data/mod.ts`](functions/soracom_get_harvest_data/mod.ts) | Harvest Data を取得 |
-| [`functions/soracom_list_soracam_devices/mod.ts`](functions/soracom_list_soracam_devices/mod.ts) | SoraCam デバイス一覧を取得 |
-| [`functions/soracom_get_soracam_events/mod.ts`](functions/soracom_get_soracam_events/mod.ts) | SoraCam イベントを取得 |
-| [`functions/soracom_export_soracam_image/mod.ts`](functions/soracom_export_soracam_image/mod.ts) | SoraCam 画像をエクスポート |
-| [`functions/soracom_sim_anomaly_alert/mod.ts`](functions/soracom_sim_anomaly_alert/mod.ts) | SIM 異常検知アラートを実行 |
-| [`functions/soracom_soracam_motion_capture/mod.ts`](functions/soracom_soracam_motion_capture/mod.ts) | SoraCam モーションキャプチャを実行 |
-| [`functions/soracom_sim_usage_report/mod.ts`](functions/soracom_sim_usage_report/mod.ts) | SIM 利用レポートを生成 |
-| [`functions/soracom_update_config/mod.ts`](functions/soracom_update_config/mod.ts) | SORACOM 設定を更新 |
+Functions は custom step として再利用する中心的な提供物です。
+
+| Function                                                                                             | 役割                                 |
+| ---------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| [`functions/soracom_list_sims/mod.ts`](functions/soracom_list_sims/mod.ts)                           | SIM 一覧取得と Slack 向け整形        |
+| [`functions/soracom_get_sim/mod.ts`](functions/soracom_get_sim/mod.ts)                               | SIM 詳細取得と Slack 向け整形        |
+| [`functions/soracom_get_air_usage/mod.ts`](functions/soracom_get_air_usage/mod.ts)                   | Air 通信量取得と集計                 |
+| [`functions/soracom_get_harvest_data/mod.ts`](functions/soracom_get_harvest_data/mod.ts)             | Harvest Data 取得と表示              |
+| [`functions/soracom_list_soracam_devices/mod.ts`](functions/soracom_list_soracam_devices/mod.ts)     | SoraCam デバイス一覧取得             |
+| [`functions/soracom_get_soracam_events/mod.ts`](functions/soracom_get_soracam_events/mod.ts)         | SoraCam イベント取得                 |
+| [`functions/soracom_export_soracam_image/mod.ts`](functions/soracom_export_soracam_image/mod.ts)     | SoraCam 画像エクスポート             |
+| [`functions/soracom_sim_anomaly_alert/mod.ts`](functions/soracom_sim_anomaly_alert/mod.ts)           | 異常ステータスの判定と共有内容の生成 |
+| [`functions/soracom_soracam_motion_capture/mod.ts`](functions/soracom_soracam_motion_capture/mod.ts) | 直近イベントの抽出と画像エクスポート |
+| [`functions/soracom_sim_usage_report/mod.ts`](functions/soracom_sim_usage_report/mod.ts)             | SIM 通信量集計とレポート生成         |
+| [`functions/soracom_update_config/mod.ts`](functions/soracom_update_config/mod.ts)                   | Datastore 設定の更新と確認           |
+
+### Workflows
+
+Workflows は Function
+を組み合わせる際のサンプルや推奨フローです。利用時はこれらをそのまま使うだけでなく、Workflow
+Builder や利用者独自の Workflow から Function を custom step
+として組み込むことを想定しています。
+
+#### 定時確認・共有
+
+| Workflow                                                                                                       | 用途                                               |
+| -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| [`workflows/soracom_sim_anomaly_alert_workflow.ts`](workflows/soracom_sim_anomaly_alert_workflow.ts)           | 異常ステータスの SIM を定時確認して共有            |
+| [`workflows/soracom_soracam_motion_capture_workflow.ts`](workflows/soracom_soracam_motion_capture_workflow.ts) | 直近の動体検知イベントを定時確認し、画像付きで共有 |
+
+#### 定期レポート・可視化
+
+| Workflow                                                                                                   | 用途                       |
+| ---------------------------------------------------------------------------------------------------------- | -------------------------- |
+| [`workflows/soracom_sim_usage_report_workflow.ts`](workflows/soracom_sim_usage_report_workflow.ts)         | SIM の通信量サマリーを生成 |
+| [`workflows/soracom_list_sims_workflow.ts`](workflows/soracom_list_sims_workflow.ts)                       | SIM 一覧を確認             |
+| [`workflows/soracom_get_air_usage_workflow.ts`](workflows/soracom_get_air_usage_workflow.ts)               | 指定 SIM の通信量を確認    |
+| [`workflows/soracom_get_harvest_data_workflow.ts`](workflows/soracom_get_harvest_data_workflow.ts)         | Harvest Data を確認        |
+| [`workflows/soracom_list_soracam_devices_workflow.ts`](workflows/soracom_list_soracam_devices_workflow.ts) | SoraCam デバイス一覧を確認 |
+| [`workflows/soracom_get_soracam_events_workflow.ts`](workflows/soracom_get_soracam_events_workflow.ts)     | SoraCam イベント履歴を確認 |
+| [`workflows/soracom_get_sim_workflow.ts`](workflows/soracom_get_sim_workflow.ts)                           | 指定 SIM の詳細を確認      |
+
+#### 現場確認・オペレーション
+
+| Workflow                                                                                                   | 用途                                 |
+| ---------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| [`workflows/soracom_export_soracam_image_workflow.ts`](workflows/soracom_export_soracam_image_workflow.ts) | SoraCam 録画から画像を切り出して確認 |
+| [`workflows/soracom_update_config_workflow.ts`](workflows/soracom_update_config_workflow.ts)               | 通知先や各種設定を更新               |
+
+### Triggers
+
+このリポジトリでは、Trigger は補助的なサンプルとして扱います。
+
+- `triggers/` 配下のファイルは、動作確認や利用例のための例です。
+- 定期実行の有無、実行時刻、通知先、対象デバイスは利用者ごとに異なるため、常設の
+  trigger 提供は前提にしません。
+- 必要な trigger は、利用者側の運用に合わせて `Shortcut` や `Scheduled Trigger`
+  を作成してください。
+
+## 想定ユースケース
+
+今後は、SORACOM API の単純なラッパーを増やすよりも、Slack
+上での定時確認、要約、現場共有を支援する Function を強化していく方針です。
+
+リアルタイム通知は SORACOM
+起点の別システムに分離し、このリポジトリでは定時実行で価値が出る Function /
+Workflow を優先します。SORACOM 本体が直接提供する Slack
+通知機能と競合する単純通知は避けます。`SORACOM Flux` は比較対象に含めません。
+
+### SoraCam を活用するユースケース
+
+- `soracam_latest_event_snapshot_workflow`
+  - 定時実行時点で直近イベントの画像を切り出して確認
+- `soracam_daily_activity_report_workflow`
+  - カメラごとのイベント件数を日次で集計
+- `soracam_opening_check_workflow`
+  - 始業前に現場状況を画像で確認
+- `soracam_closing_check_workflow`
+  - 終業後に現場状況を画像で確認
+
+### LTE-M CO2 センサーを活用するユースケース
+
+一部の Workflow
+は、[LTE-M CO2センサー RS-LTECO2 スターターキット](https://soracom.jp/store/12112/)
+の利用を想定しています。このデバイスは CO2 濃度、温度、湿度を LTE-M
+で定期送信でき、通知間隔の初期値は 5 分で、SIM タグ `interval`
+による変更にも対応しています。
+
+- `co2_daily_air_quality_report_workflow`
+  - CO2 / 温度 / 湿度の推移を日次で要約
+- `meeting_room_air_quality_review_workflow`
+  - 会議室ごとの CO2 推移とピーク時間帯を振り返る
+- `ventilation_effect_review_workflow`
+  - 換気対応の前後で CO2 / 温度 / 湿度の改善を比較する
+
+### SoraCam と CO2 センサーの組み合わせ
+
+- `co2_spike_with_snapshot_workflow`
+  - CO2 変化が大きかった時間帯の近傍カメラ画像を添えて状況確認
+- `ventilation_check_with_camera_workflow`
+  - 換気対応後の改善状況を数値と画像で確認
+- `environment_and_camera_daily_digest_workflow`
+  - 空気環境の変化とカメラ活動量を日次でまとめて確認
 
 ## テスト
 
@@ -567,7 +667,7 @@ deno task check
 # 3. Slack CLI でデプロイ
 slack deploy --env production
 
-# 4. トリガーを有効化
+# 4. 必要に応じてトリガーを作成
 slack triggers create --trigger-file triggers/soracom_list_sims_trigger.ts
 ```
 
@@ -575,6 +675,7 @@ slack triggers create --trigger-file triggers/soracom_list_sims_trigger.ts
 
 - `deployments`セクションはデフォルトでは含まれていません（開発専用テンプレートのため）
 - 本番デプロイ時に必要に応じて追加してください
+- Trigger は運用に合わせて任意で作成してください
 - 詳細は「slack.json 設定」セクションを参照
 
 ## プロジェクト構成
@@ -582,8 +683,8 @@ slack triggers create --trigger-file triggers/soracom_list_sims_trigger.ts
 ```text
 slack-utils-soracom/
 ├── functions/         # Slack Functions（各関数にtest.tsを配置）
-├── workflows/         # Slack Workflows
-├── triggers/          # Slack Triggers
+├── workflows/         # 推奨構成やサンプルの Slack Workflows
+├── triggers/          # 任意のサンプル Trigger
 ├── docs/              # ドキュメント（テストガイド等）
 ├── assets/            # アイコンなどの静的アセット
 ├── .github/           # CI/CD と Issue テンプレート

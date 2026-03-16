@@ -109,6 +109,28 @@ export interface HarvestDataResult {
 }
 
 /**
+ * 登録済みセンサープロファイル
+ */
+export interface SoracomSensorProfile {
+  /** IMSI */
+  imsi: string;
+  /** 表示名 */
+  sensorName: string;
+  /** 日次レポート投稿先チャンネル */
+  reportChannelId: string;
+  /** CO2しきい値 */
+  co2Threshold?: number;
+  /** 連携済み SoraCam デバイスID */
+  soraCamDeviceId?: string;
+  /** ダイジェスト参照時間 */
+  lookbackHours?: number;
+  /** 更新者 */
+  updatedBy?: string;
+  /** 更新日時 */
+  updatedAt?: string;
+}
+
+/**
  * ソラカメデバイス情報
  */
 export interface SoraCamDevice {
