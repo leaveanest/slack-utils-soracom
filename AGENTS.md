@@ -99,7 +99,7 @@ deno test --allow-env --allow-read --allow-net functions/<name>/test.ts
 - Slack CLI を使った実行例:
 
 ```bash
-slack run workflows/soracom_list_sims_workflow
+slack run workflows/soracom_sim_anomaly_alert_workflow
 ```
 
 - `slack.json` の `local` 環境は `.env` を読む前提です。

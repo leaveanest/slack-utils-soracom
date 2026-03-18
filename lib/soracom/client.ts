@@ -25,11 +25,52 @@ import type {
   SoraCamDevice,
   SoraCamEvent,
   SoraCamImageExport,
+  SoraCamRecordingsAndEvents,
   SoracomApiError,
   SoracomAuthResponse,
   SoracomSim,
   SoracomSimListResult,
 } from "./types.ts";
+
+interface RawSoracomSubscriber {
+  status?: string;
+  subscription?: string;
+  imsi?: string;
+  msisdn?: string;
+}
+
+interface RawSoracomProfile {
+  primaryImsi?: string;
+  subscribers?: Record<string, RawSoracomSubscriber>;
+}
+
+interface RawSoracomSessionStatus {
+  imsi?: string;
+  ueIpAddress?: string | null;
+  subscription?: string;
+}
+
+interface RawSoracomSim {
+  simId?: string;
+  imsi?: string;
+  msisdn?: string;
+  status?: string;
+  speedClass?: string;
+  tags?: Record<string, string>;
+  ipAddress?: string;
+  createdAt?: number;
+  createdTime?: number;
+  lastModifiedAt?: number;
+  lastModifiedTime?: number;
+  groupId?: string;
+  operatorId?: string;
+  subscription?: string;
+  moduleType?: string;
+  profiles?: Record<string, RawSoracomProfile>;
+  activeProfileId?: string;
+  sessionStatus?: RawSoracomSessionStatus;
+  previousSession?: RawSoracomSessionStatus;
+}
 
 interface RawAirTrafficStats {
   uploadByteSizeTotal?: number;
@@ -60,6 +101,71 @@ const BASE_URLS: Record<string, string> = {
   jp: "https://api.soracom.io/v1",
   g: "https://g.api.soracom.io/v1",
 };
+
+function getPrimaryProfile(
+  rawSim: RawSoracomSim,
+): RawSoracomProfile | undefined {
+  if (!rawSim.profiles) {
+    return undefined;
+  }
+
+  if (rawSim.activeProfileId && rawSim.profiles[rawSim.activeProfileId]) {
+    return rawSim.profiles[rawSim.activeProfileId];
+  }
+
+  return Object.values(rawSim.profiles)[0];
+}
+
+function getPrimarySubscriber(
+  rawSim: RawSoracomSim,
+): RawSoracomSubscriber | undefined {
+  const profile = getPrimaryProfile(rawSim);
+  if (!profile?.subscribers) {
+    return undefined;
+  }
+
+  return Object.values(profile.subscribers)[0];
+}
+
+/**
+ * SORACOM SIMレスポンスをアプリ内の共通形式に変換します。
+ *
+ * `listSims()` / `getSim()` のレスポンスでは、IMSI や subscription などが
+ * `profiles` や `sessionStatus` の下にネストされる場合があるため、
+ * 呼び出し側ではトップレベルの `SoracomSim` だけを見ればよい形に揃えます。
+ *
+ * @param rawSim - APIレスポンスのSIMデータ
+ * @returns 正規化済みのSIMデータ
+ */
+export function normalizeSoracomSim(rawSim: RawSoracomSim): SoracomSim {
+  const profile = getPrimaryProfile(rawSim);
+  const subscriber = getPrimarySubscriber(rawSim);
+
+  return {
+    simId: rawSim.simId || "",
+    imsi: rawSim.imsi ||
+      rawSim.sessionStatus?.imsi ||
+      subscriber?.imsi ||
+      profile?.primaryImsi ||
+      rawSim.previousSession?.imsi ||
+      "",
+    msisdn: rawSim.msisdn || subscriber?.msisdn || "",
+    status: rawSim.status || subscriber?.status || "",
+    speedClass: rawSim.speedClass || "",
+    tags: rawSim.tags || {},
+    ipAddress: rawSim.ipAddress || rawSim.sessionStatus?.ueIpAddress || "",
+    createdAt: rawSim.createdAt ?? rawSim.createdTime ?? 0,
+    lastModifiedAt: rawSim.lastModifiedAt ?? rawSim.lastModifiedTime ?? 0,
+    groupId: rawSim.groupId || "",
+    operatorId: rawSim.operatorId || "",
+    subscription: rawSim.subscription ||
+      rawSim.sessionStatus?.subscription ||
+      subscriber?.subscription ||
+      rawSim.previousSession?.subscription ||
+      "",
+    moduleType: rawSim.moduleType || "",
+  };
+}
 
 /**
  * SORACOM Air通信量統計レスポンスを共通形式に変換します。
@@ -258,7 +364,9 @@ export class SoracomClient {
     }
 
     const response = await this.request(`/sims?${params.toString()}`);
-    const sims: SoracomSim[] = await response.json();
+    const sims = (await response.json() as RawSoracomSim[]).map(
+      normalizeSoracomSim,
+    );
 
     return {
       sims,
@@ -281,8 +389,8 @@ export class SoracomClient {
    */
   async getSim(simId: string): Promise<SoracomSim> {
     const response = await this.request(`/sims/${simId}`);
-    const sim: SoracomSim = await response.json();
-    return sim;
+    const sim = await response.json() as RawSoracomSim;
+    return normalizeSoracomSim(sim);
   }
 
   /**
@@ -416,6 +524,42 @@ export class SoracomClient {
     const response = await this.request("/sora_cam/devices");
     const devices: SoraCamDevice[] = await response.json();
     return devices;
+  }
+
+  /**
+   * 指定したソラカメデバイスの録画区間とイベント一覧を取得します
+   *
+   * @param deviceId - デバイスID
+   * @param from - 開始日時（UNIXタイムスタンプミリ秒）
+   * @param to - 終了日時（UNIXタイムスタンプミリ秒）
+   * @param sort - ソート順（"desc" または "asc"）
+   * @returns 録画区間とイベント一覧
+   * @throws {Error} API呼び出しに失敗した場合
+   */
+  async listSoraCamRecordingsAndEvents(
+    deviceId: string,
+    from?: number,
+    to?: number,
+    sort: "desc" | "asc" = "desc",
+  ): Promise<SoraCamRecordingsAndEvents> {
+    const params = new URLSearchParams({ sort });
+
+    if (from !== undefined) {
+      params.set("from", String(from));
+    }
+    if (to !== undefined) {
+      params.set("to", String(to));
+    }
+
+    const response = await this.request(
+      `/sora_cam/devices/${deviceId}/recordings_and_events?${params.toString()}`,
+    );
+    const data = await response.json() as Partial<SoraCamRecordingsAndEvents>;
+
+    return {
+      records: Array.isArray(data.records) ? data.records : [],
+      events: Array.isArray(data.events) ? data.events : [],
+    };
   }
 
   /**

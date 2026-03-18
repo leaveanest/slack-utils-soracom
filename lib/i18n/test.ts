@@ -1,6 +1,7 @@
 import { assertEquals, assertExists } from "std/testing/asserts.ts";
 import {
   detectLocale,
+  formatLocalizedDateTime,
   getLocale,
   initI18n,
   loadLocale,
@@ -201,6 +202,24 @@ Deno.test("t: プレースホルダーが不足している場合は元の形式
 
   const message = t("errors.channel_not_found"); // errorパラメータなし
   assertEquals(message, "Failed to load channel info: {error}");
+});
+
+Deno.test("formatLocalizedDateTime: 日本語ロケールでは日本時間で表示する", async () => {
+  await initI18n();
+  setLocale("ja");
+
+  const formatted = formatLocalizedDateTime("2026-03-18T07:05:41.000Z");
+
+  assertEquals(formatted, "2026-03-18 16:05:41 JST");
+});
+
+Deno.test("formatLocalizedDateTime: 英語ロケールでは ISO 形式で表示する", async () => {
+  await initI18n();
+  setLocale("en");
+
+  const formatted = formatLocalizedDateTime("2026-03-18T07:05:41.000Z");
+
+  assertEquals(formatted, "2026-03-18T07:05:41.000Z");
 });
 
 Deno.test("checkI18n: 全ての言語ファイルのキーが一致する", async () => {

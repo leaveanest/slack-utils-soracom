@@ -14,6 +14,7 @@ type LocaleData = Record<string, unknown>;
 export const SUPPORTED_LOCALES = ["en", "ja"] as const;
 export type SupportedLocale = typeof SUPPORTED_LOCALES[number];
 const DEFAULT_LOCALE: SupportedLocale = "ja";
+const JAPAN_TIME_ZONE = "Asia/Tokyo";
 
 let currentLocale: SupportedLocale = DEFAULT_LOCALE;
 const localeCache: Map<string, LocaleData> = new Map();
@@ -65,6 +66,61 @@ export function setLocale(lang: SupportedLocale): void {
  */
 export function getLocale(): string {
   return currentLocale;
+}
+
+function toSupportedLocale(locale?: string): SupportedLocale {
+  return normalizeLocale(locale) ?? currentLocale;
+}
+
+function formatDateTimeParts(
+  date: Date,
+  locale: string,
+  timeZone: string,
+): string {
+  const formatter = new Intl.DateTimeFormat(locale, {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  });
+  const parts = Object.fromEntries(
+    formatter.formatToParts(date)
+      .filter((part) => part.type !== "literal")
+      .map((part) => [part.type, part.value]),
+  );
+
+  return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second}`;
+}
+
+/**
+ * 現在のロケールに応じて日時を整形します。
+ *
+ * 日本語ロケールでは日本時間で表示し、それ以外は ISO 8601 形式を返します。
+ *
+ * @param value - 整形対象の日時
+ * @param locale - 明示的に指定するロケール
+ * @returns 整形済み日時文字列
+ */
+export function formatLocalizedDateTime(
+  value: Date | number | string,
+  locale?: SupportedLocale,
+): string {
+  const date = value instanceof Date ? value : new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    throw new Error(`Invalid date value: ${value}`);
+  }
+
+  const resolvedLocale = toSupportedLocale(locale);
+  if (resolvedLocale === "ja") {
+    return `${formatDateTimeParts(date, "ja-JP", JAPAN_TIME_ZONE)} JST`;
+  }
+
+  return date.toISOString();
 }
 
 /**

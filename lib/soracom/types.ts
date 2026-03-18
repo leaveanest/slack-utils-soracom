@@ -169,6 +169,33 @@ export interface SoraCamEvent {
 }
 
 /**
+ * ソラカメ録画区間
+ */
+export interface SoraCamRecording {
+  /** 録画開始日時（UNIXタイムスタンプミリ秒） */
+  startTime: number;
+  /** 録画終了日時（UNIXタイムスタンプミリ秒） */
+  endTime?: number;
+}
+
+/**
+ * ソラカメ録画区間とイベントの取得結果
+ */
+export interface SoraCamRecordingsAndEvents {
+  /** 録画区間一覧 */
+  records: SoraCamRecording[];
+  /** イベント一覧 */
+  events: Array<{
+    /** イベント種別 */
+    type: string;
+    /** 開始日時（UNIXタイムスタンプミリ秒） */
+    startTime: number;
+    /** 終了日時（UNIXタイムスタンプミリ秒） */
+    endTime?: number;
+  }>;
+}
+
+/**
  * ソラカメ画像エクスポートリクエスト
  */
 export interface SoraCamImageExportRequest {

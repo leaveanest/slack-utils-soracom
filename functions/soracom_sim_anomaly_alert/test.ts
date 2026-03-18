@@ -92,3 +92,19 @@ Deno.test({
     assertEquals(message.length > 0, true);
   },
 });
+
+Deno.test({
+  name: "異常SIMのIMSIが空でもプレースホルダーを表示しない",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    const message = formatAnomalyAlertMessage([
+      { ...baseSim, imsi: "", status: "suspended" },
+    ], 1);
+
+    assertEquals(message.includes("{imsi}"), false);
+    assertEquals(message.includes("IMSI: -"), true);
+  },
+});

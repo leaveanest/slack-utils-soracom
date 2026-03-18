@@ -25,7 +25,7 @@
 
 ```
 functions/
-  ├── soracom_list_sims/
+  ├── soracom_get_air_usage/
   │   ├── mod.ts          # 関数の実装
   │   └── test.ts         # テストファイル
   └── your_function/
@@ -49,7 +49,7 @@ deno task test
 
 ```bash
 # 特定のファイルのみテスト
-deno test --allow-all functions/soracom_list_sims/test.ts
+deno test --allow-all functions/soracom_get_air_usage/test.ts
 ```
 
 ### カバレッジ付きで実行
@@ -438,7 +438,7 @@ const mockClient = {
 
 - [Deno Testing](https://deno.land/manual/testing)
 - [Deno Standard Library - Testing](https://deno.land/std/testing)
-- [プロジェクトの例](../functions/soracom_list_sims/)
+- [プロジェクトの例](../functions/soracom_get_air_usage/)
 
 ## 質問・改善提案
 

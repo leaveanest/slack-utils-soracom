@@ -1,12 +1,15 @@
 import { DefineFunction, Schema, SlackFunction } from "deno-slack-sdk/mod.ts";
 import { t } from "../../lib/i18n/mod.ts";
 import {
+  bucketAirQualityEntries,
   createSoracomClientFromEnv,
+  findPeakCo2Bucket,
   listSensorProfiles,
   resolveAirQualityCriteria,
   summarizeAirQualityEntries,
 } from "../../lib/soracom/mod.ts";
 import type {
+  AirQualityBucketSummary,
   AirQualityCriteria,
   AirQualityMetricSummary,
   AirQualitySummary,
@@ -24,16 +27,19 @@ type AirQualityCriteriaView = {
   humidityViolationCount: number;
 };
 
+const DEFAULT_BUCKET_MINUTES = 60;
+
 /**
  * CO2日次空気品質レポート関数定義
  *
  * Datastore に登録済みのセンサープロファイルを走査し、
- * CO2 / 温度 / 湿度の要約を Slack に投稿します。
+ * CO2 / 温度 / 湿度の要約と CO2 ピーク時間帯を Slack に投稿します。
  */
 export const Co2DailyAirQualityReportFunctionDefinition = DefineFunction({
   callback_id: "co2_daily_air_quality_report",
   title: "CO2日次空気品質レポート",
-  description: "登録済みセンサーの日次空気品質サマリーを生成します",
+  description:
+    "登録済みセンサーの日次空気品質サマリーとCO2ピーク時間帯を生成します",
   source_file: "functions/co2_daily_air_quality_report/mod.ts",
   input_parameters: {
     properties: {},
@@ -68,12 +74,14 @@ export const Co2DailyAirQualityReportFunctionDefinition = DefineFunction({
  * @param sensorName - センサー表示名
  * @param imsi - IMSI
  * @param summary - 集計済み空気品質サマリー
+ * @param peakBucket - CO2 ピーク時間帯
  * @returns フォーマット済みメッセージ
  */
 export function formatCo2DailyAirQualityReportMessage(
   sensorName: string,
   imsi: string,
   summary: AirQualitySummary,
+  peakBucket: AirQualityBucketSummary | null,
 ): string {
   const criteria = getAirQualityCriteriaView(summary);
 
@@ -100,6 +108,7 @@ export function formatCo2DailyAirQualityReportMessage(
       count: summary.sampleCount,
     }),
     ...formatCriteriaViolationLines(criteria),
+    ...formatPeakBucketLines(peakBucket),
     formatMetricSummaryLine(
       t("soracom.messages.air_quality_metric_co2"),
       summary.co2,
@@ -179,6 +188,26 @@ function formatCriteriaViolationLines(
   ];
 }
 
+function formatPeakBucketLines(
+  peakBucket: AirQualityBucketSummary | null,
+): string[] {
+  if (peakBucket === null) {
+    return [];
+  }
+
+  return [
+    t("soracom.messages.air_quality_peak_window", {
+      start: new Date(peakBucket.startTime).toISOString(),
+      end: new Date(peakBucket.endTime).toISOString(),
+    }),
+    peakBucket.summary.co2.average !== undefined
+      ? t("soracom.messages.air_quality_peak_co2", {
+        value: formatMetricNumber(peakBucket.summary.co2.average),
+      })
+      : t("soracom.messages.air_quality_peak_co2_missing"),
+  ];
+}
+
 function getAirQualityCriteriaView(
   summary: AirQualitySummary,
 ): AirQualityCriteriaView {
@@ -252,10 +281,18 @@ export default SlackFunction(
           );
 
           const summary = summarizeAirQualityEntries(result.entries, criteria);
+          const peakBucket = findPeakCo2Bucket(
+            bucketAirQualityEntries(
+              result.entries,
+              DEFAULT_BUCKET_MINUTES * 60 * 1000,
+              criteria,
+            ),
+          );
           const message = formatCo2DailyAirQualityReportMessage(
             profile.sensorName,
             profile.imsi,
             summary,
+            peakBucket,
           );
 
           await client.chat.postMessage({

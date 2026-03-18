@@ -3,6 +3,7 @@ import {
   createSoracomClientFromEnv,
   formatBytes,
   normalizeAirStatsDataPoints,
+  normalizeSoracomSim,
   SoracomClient,
 } from "./mod.ts";
 
@@ -71,4 +72,53 @@ Deno.test("normalizeAirStatsDataPoints: SIM IDベースAPIの形式を正規化�
       downloadPacketSizeTotal: 6,
     },
   ]);
+});
+
+Deno.test("normalizeSoracomSim: ネストされた SIM レスポンスを正規化できる", () => {
+  const normalized = normalizeSoracomSim({
+    operatorId: "OP001",
+    simId: "8981100067203921953",
+    status: "active",
+    speedClass: "s1.4xfast",
+    tags: { name: "GPSトラッカー" },
+    groupId: "group-1",
+    moduleType: "nano",
+    createdTime: 1760598494199,
+    lastModifiedTime: 1768378247174,
+    activeProfileId: "8981100067203921953",
+    profiles: {
+      "8981100067203921953": {
+        primaryImsi: "440103269638173",
+        subscribers: {
+          "440103269638173": {
+            imsi: "440103269638173",
+            msisdn: "812012345577",
+            status: "active",
+            subscription: "plan-D",
+          },
+        },
+      },
+    },
+    sessionStatus: {
+      imsi: "440103269638173",
+      ueIpAddress: "10.10.10.10",
+      subscription: "plan-D",
+    },
+  });
+
+  assertEquals(normalized, {
+    operatorId: "OP001",
+    simId: "8981100067203921953",
+    imsi: "440103269638173",
+    msisdn: "812012345577",
+    status: "active",
+    speedClass: "s1.4xfast",
+    tags: { name: "GPSトラッカー" },
+    ipAddress: "10.10.10.10",
+    createdAt: 1760598494199,
+    lastModifiedAt: 1768378247174,
+    groupId: "group-1",
+    subscription: "plan-D",
+    moduleType: "nano",
+  });
 });

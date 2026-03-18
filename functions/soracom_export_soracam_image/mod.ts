@@ -1,7 +1,18 @@
 import { DefineFunction, Schema, SlackFunction } from "deno-slack-sdk/mod.ts";
 import { t } from "../../lib/i18n/mod.ts";
-import { createSoracomClientFromEnv } from "../../lib/soracom/mod.ts";
-import type { SoraCamImageExport } from "../../lib/soracom/mod.ts";
+import {
+  type SlackApiClient,
+  uploadSlackFileToChannel,
+} from "../../lib/slack/file_upload.ts";
+import {
+  buildSoraCamSnapshotFileName,
+  buildSoraCamSnapshotTitle,
+  captureSoraCamSnapshot,
+  createSoracomClientFromEnv,
+  formatSoraCamImageExportReport,
+  type SoraCamDevice,
+  type SoraCamImageExportReportResult,
+} from "../../lib/soracom/mod.ts";
 import { soraCamDeviceIdSchema } from "../../lib/validation/schemas.ts";
 
 /**
@@ -53,38 +64,42 @@ export const SoracomExportSoraCamImageFunctionDefinition = DefineFunction({
 });
 
 /**
- * ソラカメ画像エクスポート結果をフォーマットされたメッセージに変換します
+ * 単体デバイスの表示用結果です。
+ */
+export type SoraCamSingleImageExportResult = SoraCamImageExportReportResult;
+
+function buildSingleDeviceResult(
+  device: SoraCamDevice | undefined,
+  deviceId: string,
+  exportId: string,
+  imageUrl: string,
+  snapshotTime: number,
+  slackFileId: string,
+): SoraCamSingleImageExportResult {
+  return {
+    deviceId,
+    deviceName: device?.name || deviceId,
+    exportId,
+    status: "uploaded",
+    imageUrl,
+    snapshotTime,
+    slackFileId,
+  };
+}
+
+/**
+ * ソラカメ画像エクスポート結果をフォーマットされたメッセージに変換します。
  *
- * @param deviceId - デバイスID
- * @param exportResult - エクスポート結果
+ * @param result - 単体デバイスのエクスポート結果
  * @returns フォーマットされたSlackメッセージ文字列
  */
 export function formatSoraCamImageExportMessage(
-  deviceId: string,
-  exportResult: SoraCamImageExport,
+  result: SoraCamSingleImageExportResult,
 ): string {
-  const lines = [
-    t("soracom.messages.soracam_image_export_requested", { deviceId }),
-    t("soracom.messages.soracam_image_export_status", {
-      status: exportResult.status,
-    }),
-  ];
-
-  if (exportResult.status === "completed" && exportResult.url) {
-    lines.push(
-      t("soracom.messages.soracam_image_export_url", {
-        url: exportResult.url,
-      }),
-    );
-  } else if (exportResult.status === "processing") {
-    lines.push(
-      t("soracom.messages.soracam_image_export_processing", {
-        exportId: exportResult.exportId,
-      }),
-    );
-  }
-
-  return lines.join("\n");
+  return formatSoraCamImageExportReport(
+    t("soracom.messages.soracam_single_image_export_header"),
+    [result],
+  );
 }
 
 export default SlackFunction(
@@ -100,39 +115,59 @@ export default SlackFunction(
       );
 
       const soracomClient = createSoracomClientFromEnv(env);
-
-      // 現在時刻のスナップショットをエクスポート
-      const exportResult = await soracomClient.exportSoraCamImage(
+      const devices = await soracomClient.listSoraCamDevices();
+      const targetDevice = devices.find((device) =>
+        device.deviceId === validDeviceId
+      );
+      const snapshot = await captureSoraCamSnapshot(
+        soracomClient,
         validDeviceId,
-        Date.now(),
+      );
+      const slackFileId = await uploadSlackFileToChannel(
+        client as unknown as SlackApiClient,
+        inputs.channel_id,
+        snapshot.snapshotBytes,
+        {
+          filename: buildSoraCamSnapshotFileName(
+            validDeviceId,
+            snapshot.snapshotTime,
+          ),
+          title: buildSoraCamSnapshotTitle(
+            targetDevice?.name || validDeviceId,
+            snapshot.snapshotTime,
+          ),
+          contentType: "image/jpeg",
+        },
       );
 
-      // エクスポートが完了するまで少し待機して結果を取得
-      let finalResult = exportResult;
-      if (exportResult.status === "processing") {
-        await new Promise((resolve) => setTimeout(resolve, 3000));
-        finalResult = await soracomClient.getSoraCamImageExport(
-          validDeviceId,
-          exportResult.exportId,
-        );
-      }
-
-      const message = formatSoraCamImageExportMessage(
+      const result = buildSingleDeviceResult(
+        targetDevice,
         validDeviceId,
-        finalResult,
+        snapshot.exportId,
+        snapshot.imageUrl,
+        snapshot.snapshotTime,
+        slackFileId,
       );
+      const message = formatSoraCamImageExportMessage(result);
 
-      await client.chat.postMessage({
+      const postResponse = await client.chat.postMessage({
         channel: inputs.channel_id,
         text: message,
       });
+      if (!postResponse.ok) {
+        throw new Error(
+          t("errors.api_call_failed", {
+            error: postResponse.error ?? "chat.postMessage_failed",
+          }),
+        );
+      }
 
       return {
         outputs: {
           device_id: validDeviceId,
-          export_id: finalResult.exportId,
-          status: finalResult.status,
-          image_url: finalResult.url || "",
+          export_id: snapshot.exportId,
+          status: result.status,
+          image_url: snapshot.imageUrl,
           message,
         },
       };

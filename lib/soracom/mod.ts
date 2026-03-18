@@ -7,6 +7,7 @@
 export {
   createSoracomClientFromEnv,
   normalizeAirStatsDataPoints,
+  normalizeSoracomSim,
   SoracomClient,
 } from "./client.ts";
 export type { SoracomClientConfig } from "./client.ts";
@@ -47,6 +48,19 @@ export {
 } from "./datastore.ts";
 export { listSensorProfiles, upsertSensorProfile } from "./sensor_profiles.ts";
 export type { SoracomSensorProfileInput } from "./sensor_profiles.ts";
+export {
+  buildSoraCamSnapshotFileName,
+  buildSoraCamSnapshotTitle,
+  captureSoraCamSnapshot,
+  downloadSoraCamSnapshot,
+  pickSoraCamSnapshotTime,
+  resolveSoraCamSnapshotTime,
+  waitForSoraCamImageExport,
+} from "./snapshot.ts";
+export {
+  formatSoraCamImageExportReport,
+  summarizeSoraCamImageExportResults,
+} from "./snapshot_report.ts";
 export type {
   AirStatsDataPoint,
   AirStatsResult,
@@ -55,12 +69,19 @@ export type {
   SoraCamDevice,
   SoraCamEvent,
   SoraCamImageExport,
+  SoraCamRecording,
+  SoraCamRecordingsAndEvents,
   SoracomApiError,
   SoracomAuthResponse,
   SoracomSensorProfile,
   SoracomSim,
   SoracomSimListResult,
 } from "./types.ts";
+export type { SoraCamSnapshotCaptureResult } from "./snapshot.ts";
+export type {
+  SoraCamImageExportReportResult,
+  SoraCamImageExportSummary,
+} from "./snapshot_report.ts";
 
 /**
  * バイト数を人間が読みやすい形式に変換します

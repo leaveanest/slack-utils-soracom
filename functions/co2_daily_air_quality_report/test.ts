@@ -1,6 +1,9 @@
 import { assertEquals } from "std/testing/asserts.ts";
 import { getLocale, setLocale, t } from "../../lib/i18n/mod.ts";
-import type { AirQualitySummary } from "../../lib/soracom/mod.ts";
+import type {
+  AirQualityBucketSummary,
+  AirQualitySummary,
+} from "../../lib/soracom/mod.ts";
 import { formatCo2DailyAirQualityReportMessage } from "./mod.ts";
 
 const summaryWithData: AirQualitySummary = {
@@ -44,6 +47,41 @@ const summaryWithData: AirQualitySummary = {
   humidityOutOfRangeCount: 0,
 };
 
+const peakBucket: AirQualityBucketSummary = {
+  startTime: Date.parse("2026-03-16T01:00:00.000Z"),
+  endTime: Date.parse("2026-03-16T02:00:00.000Z"),
+  summary: {
+    sampleCount: 4,
+    co2: {
+      latest: 1300,
+      min: 1200,
+      max: 1350,
+      average: 1275,
+    },
+    temperature: {},
+    humidity: {},
+    criteria: {
+      co2Max: 1000,
+      temperatureMin: 18,
+      temperatureMax: 28,
+      humidityMin: 40,
+      humidityMax: 70,
+    },
+    co2Threshold: 1000,
+    co2ThresholdExceededCount: 4,
+    temperatureRange: {
+      min: 18,
+      max: 28,
+    },
+    temperatureOutOfRangeCount: 1,
+    humidityRange: {
+      min: 40,
+      max: 70,
+    },
+    humidityOutOfRangeCount: 0,
+  },
+};
+
 Deno.test({
   name: "CO2日次空気品質レポートが正しくフォーマットされる",
   sanitizeResources: false,
@@ -55,6 +93,7 @@ Deno.test({
       "会議室CO2センサー",
       "440101234567890",
       summaryWithData,
+      peakBucket,
     );
 
     assertEquals(message.includes("会議室CO2センサー"), true);
@@ -63,6 +102,8 @@ Deno.test({
     assertEquals(message.includes("CO2"), true);
     assertEquals(message.includes("1250"), true);
     assertEquals(message.includes("23.5"), true);
+    assertEquals(message.includes("1275"), true);
+    assertEquals(message.includes("2026-03-16T01:00:00.000Z"), true);
     assertEquals(
       message.includes("air_quality_temperature_violation_count") ||
         (message.includes("18") && message.includes("28")),
@@ -91,6 +132,7 @@ Deno.test({
         temperatureOutOfRangeCount: 0,
         humidityOutOfRangeCount: 0,
       },
+      null,
     );
 
     assertEquals(message.includes("440101234567890"), true);
@@ -117,6 +159,7 @@ Deno.test({
           ...summaryWithData,
           humidity: {},
         },
+        peakBucket,
       );
 
       assertEquals(
@@ -126,5 +169,25 @@ Deno.test({
     } finally {
       setLocale(originalLocale);
     }
+  },
+});
+
+Deno.test({
+  name: "ピーク時間帯が取れない場合も日次レポート本文は生成される",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    const message = formatCo2DailyAirQualityReportMessage(
+      "会議室CO2センサー",
+      "440101234567890",
+      summaryWithData,
+      null,
+    );
+
+    assertEquals(message.includes("会議室CO2センサー"), true);
+    assertEquals(message.includes("440101234567890"), true);
+    assertEquals(message.includes("2026-03-16T01:00:00.000Z"), false);
   },
 });
