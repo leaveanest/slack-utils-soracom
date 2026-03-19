@@ -106,7 +106,7 @@
       "soracam_all_image_exports_uploaded": "Slack にスナップショットをアップロードしました",
       "soracam_all_image_exports_snapshot_time": "スナップショット時刻: {time}",
       "soracam_all_image_exports_pending": "次の最大{batchCount}台を処理中です",
-      "soracam_all_image_exports_channel_notice": "画像はこのチャンネルに順次投稿されます",
+      "soracam_all_image_exports_channel_notice": "画像はこのメッセージのスレッドに順次投稿されます",
       "soracam_all_image_exports_progress": "進捗: アップロード済み {uploaded}台 / 処理中 {processing}台 / 失敗 {failed}台 / 残り {remaining}台",
       "soracam_all_image_exports_resume_notice": "残りのカメラも自動で続行します",
       "soracam_all_image_exports_completed": ":white_check_mark: 全台の画像エクスポートが完了しました",

@@ -106,7 +106,7 @@
       "soracam_all_image_exports_uploaded": "Snapshot uploaded to Slack",
       "soracam_all_image_exports_snapshot_time": "Snapshot time: {time}",
       "soracam_all_image_exports_pending": "Processing up to the next {batchCount} devices",
-      "soracam_all_image_exports_channel_notice": "Images will be posted sequentially in this channel",
+      "soracam_all_image_exports_channel_notice": "Images will be posted sequentially in this message thread",
       "soracam_all_image_exports_progress": "Progress: uploaded {uploaded}, processing {processing}, failed {failed}, remaining {remaining}",
       "soracam_all_image_exports_resume_notice": "The remaining devices will continue automatically",
       "soracam_all_image_exports_completed": ":white_check_mark: Image export for all devices is complete",

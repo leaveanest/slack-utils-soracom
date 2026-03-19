@@ -289,6 +289,7 @@ export function formatAllSoraCamImageExportMessage(
       failed: failedCount,
       remaining: remainingCount,
     }),
+    t("soracom.messages.soracam_all_image_exports_channel_notice"),
   ];
 
   if (remainingCount > 0) {
@@ -585,6 +586,10 @@ async function createAllSoraCamImageExportJob(
   return job;
 }
 
+function buildScheduledTriggerStartTime(now: number, delayMs: number): string {
+  return new Date(Math.max(now, Date.now()) + delayMs).toISOString();
+}
+
 async function scheduleAllSoraCamImageExportTaskRun(
   client: AllSoraCamImageExportClient,
   channelId: string,
@@ -598,7 +603,7 @@ async function scheduleAllSoraCamImageExportTaskRun(
     name: t("soracom.messages.soracam_all_image_exports_trigger_name"),
     workflow: ALL_SORACAM_EXPORT_WORKFLOW_PATH,
     schedule: {
-      start_time: new Date(now + delayMs).toISOString(),
+      start_time: buildScheduledTriggerStartTime(now, delayMs),
       frequency: {
         type: "once",
       },
@@ -747,6 +752,7 @@ function assertSoraCamImageExportUsable(
 async function uploadCompletedSoraCamSnapshot(
   client: SlackApiClient,
   channelId: string,
+  threadTs: string,
   task: SoracomAllSoraCamImageExportTask,
   exportResult: SoraCamImageExport,
   snapshotTime: number,
@@ -768,6 +774,7 @@ async function uploadCompletedSoraCamSnapshot(
       filename: buildSoraCamSnapshotFileName(task.deviceId, snapshotTime),
       title: buildSoraCamSnapshotTitle(task.deviceName, snapshotTime),
       contentType: "image/jpeg",
+      threadTs,
     },
   );
 
@@ -788,6 +795,7 @@ async function startQueuedSoraCamDeviceExport(
   >,
   client: SlackApiClient,
   channelId: string,
+  threadTs: string,
   task: SoracomAllSoraCamImageExportTask,
   now: number,
 ): Promise<SoracomAllSoraCamImageExportTask> {
@@ -807,6 +815,7 @@ async function startQueuedSoraCamDeviceExport(
       return await uploadCompletedSoraCamSnapshot(
         client,
         channelId,
+        threadTs,
         task,
         exportResult,
         snapshotTime,
@@ -829,6 +838,7 @@ async function resumeProcessingSoraCamDeviceExport(
   soracomClient: Pick<SoracomClient, "getSoraCamImageExport">,
   client: SlackApiClient,
   channelId: string,
+  threadTs: string,
   task: SoracomAllSoraCamImageExportTask,
   now: number,
 ): Promise<SoracomAllSoraCamImageExportTask> {
@@ -847,6 +857,7 @@ async function resumeProcessingSoraCamDeviceExport(
       return await uploadCompletedSoraCamSnapshot(
         client,
         channelId,
+        threadTs,
         task,
         exportResult,
         task.snapshotTime,
@@ -964,6 +975,7 @@ async function processAllSoraCamImageExportWorker(params: {
       params.soracomClient,
       params.client,
       params.channelId,
+      job.messageTs,
       task,
       params.now,
     )
@@ -971,6 +983,7 @@ async function processAllSoraCamImageExportWorker(params: {
       params.soracomClient,
       params.client,
       params.channelId,
+      job.messageTs,
       task,
       params.now,
     );
