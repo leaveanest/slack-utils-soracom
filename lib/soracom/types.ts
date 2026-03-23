@@ -111,36 +111,6 @@ export interface HarvestDataResult {
 }
 
 /**
- * 登録済みセンサープロファイル
- */
-export interface SoracomSensorProfile {
-  /** IMSI */
-  imsi: string;
-  /** 表示名 */
-  sensorName: string;
-  /** 日次レポート投稿先チャンネル */
-  reportChannelId: string;
-  /** CO2しきい値 */
-  co2Threshold?: number;
-  /** 温度下限 */
-  temperatureMin?: number;
-  /** 温度上限 */
-  temperatureMax?: number;
-  /** 湿度下限 */
-  humidityMin?: number;
-  /** 湿度上限 */
-  humidityMax?: number;
-  /** 連携済み SoraCam デバイスID */
-  soraCamDeviceId?: string;
-  /** ダイジェスト参照時間 */
-  lookbackHours?: number;
-  /** 更新者 */
-  updatedBy?: string;
-  /** 更新日時 */
-  updatedAt?: string;
-}
-
-/**
  * SoraCam 動体検知画像アップロードジョブ
  */
 export interface SoracomMotionCaptureJob {

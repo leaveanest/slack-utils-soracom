@@ -2,14 +2,14 @@ import { DefineWorkflow, Schema } from "deno-slack-sdk/mod.ts";
 import { Co2DailyAirQualityReportFunctionDefinition } from "../functions/co2_daily_air_quality_report/mod.ts";
 
 /**
- * CO2日次空気品質レポートワークフロー
+ * 日次空気品質レポートワークフロー
  *
  * 指定した SIM グループをもとに、
  * Slack に日次レポートと CO2 ピーク時間帯を投稿します。
  */
 const Co2DailyAirQualityReportWorkflow = DefineWorkflow({
   callback_id: "co2_daily_air_quality_report_workflow",
-  title: "CO2日次空気品質レポート",
+  title: "日次空気品質レポート",
   description:
     "指定した SIM グループの日次空気品質サマリーとCO2ピーク時間帯を生成します",
   input_parameters: {

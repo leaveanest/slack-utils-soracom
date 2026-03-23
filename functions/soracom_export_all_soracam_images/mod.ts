@@ -57,7 +57,7 @@ export type SoraCamBatchImageExportResult = SoraCamImageExportReportResult;
  */
 export const SoracomExportAllSoraCamImagesFunctionDefinition = DefineFunction({
   callback_id: "soracom_export_all_soracam_images",
-  title: "SoraCam全台画像エクスポート",
+  title: "ソラカメ全台画像スナップショット",
   description: "すべての SoraCam デバイスから画像を切り出して共有します",
   source_file: "functions/soracom_export_all_soracam_images/mod.ts",
   input_parameters: {
@@ -752,7 +752,6 @@ function assertSoraCamImageExportUsable(
 async function uploadCompletedSoraCamSnapshot(
   client: SlackApiClient,
   channelId: string,
-  threadTs: string,
   task: SoracomAllSoraCamImageExportTask,
   exportResult: SoraCamImageExport,
   snapshotTime: number,
@@ -774,7 +773,6 @@ async function uploadCompletedSoraCamSnapshot(
       filename: buildSoraCamSnapshotFileName(task.deviceId, snapshotTime),
       title: buildSoraCamSnapshotTitle(task.deviceName, snapshotTime),
       contentType: "image/jpeg",
-      threadTs,
     },
   );
 
@@ -795,7 +793,6 @@ async function startQueuedSoraCamDeviceExport(
   >,
   client: SlackApiClient,
   channelId: string,
-  threadTs: string,
   task: SoracomAllSoraCamImageExportTask,
   now: number,
 ): Promise<SoracomAllSoraCamImageExportTask> {
@@ -815,7 +812,6 @@ async function startQueuedSoraCamDeviceExport(
       return await uploadCompletedSoraCamSnapshot(
         client,
         channelId,
-        threadTs,
         task,
         exportResult,
         snapshotTime,
@@ -838,7 +834,6 @@ async function resumeProcessingSoraCamDeviceExport(
   soracomClient: Pick<SoracomClient, "getSoraCamImageExport">,
   client: SlackApiClient,
   channelId: string,
-  threadTs: string,
   task: SoracomAllSoraCamImageExportTask,
   now: number,
 ): Promise<SoracomAllSoraCamImageExportTask> {
@@ -857,7 +852,6 @@ async function resumeProcessingSoraCamDeviceExport(
       return await uploadCompletedSoraCamSnapshot(
         client,
         channelId,
-        threadTs,
         task,
         exportResult,
         task.snapshotTime,
@@ -975,7 +969,6 @@ async function processAllSoraCamImageExportWorker(params: {
       params.soracomClient,
       params.client,
       params.channelId,
-      job.messageTs,
       task,
       params.now,
     )
@@ -983,7 +976,6 @@ async function processAllSoraCamImageExportWorker(params: {
       params.soracomClient,
       params.client,
       params.channelId,
-      job.messageTs,
       task,
       params.now,
     );

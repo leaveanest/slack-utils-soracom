@@ -154,10 +154,9 @@ const MOTION_EVENT_TYPES = ["motion", "person"];
 const ALL_MOTION_EVENT_LIMIT = Number.MAX_SAFE_INTEGER;
 const LOOKBACK_WINDOW_MS = 60 * 60 * 1000;
 export const MOTION_CAPTURE_BATCH_SIZE = 5;
-// Slack custom functions time out after 15 seconds when running locally.
-// Keep a safety margin so upload + progress update + continuation scheduling
-// all finish before the workflow token is revoked.
-export const MOTION_CAPTURE_TIME_BUDGET_MS = 9_000;
+// Deployed custom functions typically allow up to 60 seconds.
+// Keep 10 seconds of headroom for progress updates and continuation scheduling.
+export const MOTION_CAPTURE_TIME_BUDGET_MS = 50_000;
 export const MOTION_CAPTURE_CONTINUATION_DELAY_MS = 60_000;
 export const MOTION_CAPTURE_CREATION_SETTLE_MS = 750;
 export const MOTION_CAPTURE_CREATION_WAIT_RETRIES = 20;

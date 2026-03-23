@@ -59,8 +59,6 @@ export {
   getMotionCaptureJob,
   upsertMotionCaptureJob,
 } from "./motion_capture_jobs.ts";
-export { listSensorProfiles, upsertSensorProfile } from "./sensor_profiles.ts";
-export type { SoracomSensorProfileInput } from "./sensor_profiles.ts";
 export {
   buildSoraCamSnapshotFileName,
   buildSoraCamSnapshotTitle,
@@ -89,7 +87,6 @@ export type {
   SoracomApiError,
   SoracomAuthResponse,
   SoracomMotionCaptureJob,
-  SoracomSensorProfile,
   SoracomSim,
   SoracomSimListResult,
 } from "./types.ts";

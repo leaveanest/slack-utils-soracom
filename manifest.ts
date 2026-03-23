@@ -7,11 +7,6 @@ import { SoracomSimAnomalyAlertFunctionDefinition } from "./functions/soracom_si
 import { SoracomSoraCamMotionCaptureFunctionDefinition } from "./functions/soracom_soracam_motion_capture/mod.ts";
 import { SoracomSimUsageReportFunctionDefinition } from "./functions/soracom_sim_usage_report/mod.ts";
 import { Co2DailyAirQualityReportFunctionDefinition } from "./functions/co2_daily_air_quality_report/mod.ts";
-import { VentilationEffectReviewFunctionDefinition } from "./functions/ventilation_effect_review/mod.ts";
-import { AirQualityAlertWithSnapshotFunctionDefinition } from "./functions/air_quality_alert_with_snapshot/mod.ts";
-import { VentilationCheckWithCameraFunctionDefinition } from "./functions/ventilation_check_with_camera/mod.ts";
-import { EnvironmentAndCameraDailyDigestFunctionDefinition } from "./functions/environment_and_camera_daily_digest/mod.ts";
-import { SoracomUpdateSensorProfileFunctionDefinition } from "./functions/soracom_update_sensor_profile/mod.ts";
 import SoracomGetHarvestDataWorkflow from "./workflows/soracom_get_harvest_data_workflow.ts";
 import SoracomListSoraCamDevicesWorkflow from "./workflows/soracom_list_soracam_devices_workflow.ts";
 import SoracomExportSoraCamImageWorkflow from "./workflows/soracom_export_soracam_image_workflow.ts";
@@ -20,15 +15,9 @@ import SoracomSimAnomalyAlertWorkflow from "./workflows/soracom_sim_anomaly_aler
 import SoracomSoraCamMotionCaptureWorkflow from "./workflows/soracom_soracam_motion_capture_workflow.ts";
 import SoracomSimUsageReportWorkflow from "./workflows/soracom_sim_usage_report_workflow.ts";
 import Co2DailyAirQualityReportWorkflow from "./workflows/co2_daily_air_quality_report_workflow.ts";
-import VentilationEffectReviewWorkflow from "./workflows/ventilation_effect_review_workflow.ts";
-import AirQualityAlertWithSnapshotWorkflow from "./workflows/air_quality_alert_with_snapshot_workflow.ts";
-import VentilationCheckWithCameraWorkflow from "./workflows/ventilation_check_with_camera_workflow.ts";
-import EnvironmentAndCameraDailyDigestWorkflow from "./workflows/environment_and_camera_daily_digest_workflow.ts";
-import SoracomUpdateSensorProfileWorkflow from "./workflows/soracom_update_sensor_profile_workflow.ts";
 import SoracomAllSoraCamImageExportJobsDatastore from "./datastores/soracom_all_soracam_image_export_jobs.ts";
 import SoracomAllSoraCamImageExportTasksDatastore from "./datastores/soracom_all_soracam_image_export_tasks.ts";
 import SoracomMotionCaptureJobsDatastore from "./datastores/soracom_motion_capture_jobs.ts";
-import SoracomSensorProfilesDatastore from "./datastores/soracom_sensor_profiles.ts";
 
 // Load from environment variables with fallback defaults
 const APP_NAME = Deno.env.get("SLACK_APP_NAME") || "Slack Utils SORACOM";
@@ -51,18 +40,11 @@ export default Manifest({
     SoracomSoraCamMotionCaptureWorkflow,
     SoracomSimUsageReportWorkflow,
     Co2DailyAirQualityReportWorkflow,
-    VentilationEffectReviewWorkflow,
-    AirQualityAlertWithSnapshotWorkflow,
-    VentilationCheckWithCameraWorkflow,
-    EnvironmentAndCameraDailyDigestWorkflow,
-    // 設定管理
-    SoracomUpdateSensorProfileWorkflow,
   ],
   datastores: [
     SoracomAllSoraCamImageExportJobsDatastore,
     SoracomAllSoraCamImageExportTasksDatastore,
     SoracomMotionCaptureJobsDatastore,
-    SoracomSensorProfilesDatastore,
   ],
   functions: [
     // Harvest Data
@@ -76,12 +58,6 @@ export default Manifest({
     SoracomSoraCamMotionCaptureFunctionDefinition,
     SoracomSimUsageReportFunctionDefinition,
     Co2DailyAirQualityReportFunctionDefinition,
-    VentilationEffectReviewFunctionDefinition,
-    AirQualityAlertWithSnapshotFunctionDefinition,
-    VentilationCheckWithCameraFunctionDefinition,
-    EnvironmentAndCameraDailyDigestFunctionDefinition,
-    // 設定管理
-    SoracomUpdateSensorProfileFunctionDefinition,
   ],
   outgoingDomains: [
     "api.soracom.io",

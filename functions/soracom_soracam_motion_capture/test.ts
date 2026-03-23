@@ -593,7 +593,7 @@ Deno.test("時間予算に達したら5件未満でもその run を終了して
     const times = [
       1700007000000,
       1700007000000 + 2000,
-      1700007000000 + 10000,
+      1700007000000 + 51000,
     ];
     let timeIndex = 0;
 
@@ -608,7 +608,7 @@ Deno.test("時間予算に達したら5件未満でもその run を終了して
 
     const job = await getMotionCaptureJob(client, "C123", "dev-1");
 
-    assertEquals(MOTION_CAPTURE_TIME_BUDGET_MS, 9000);
+    assertEquals(MOTION_CAPTURE_TIME_BUDGET_MS, 50000);
     assertEquals(exportCalls.length, 2);
     assertEquals(result.eventCount, 6);
     assertEquals(result.exportedImages, 2);

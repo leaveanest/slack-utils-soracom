@@ -9,7 +9,7 @@ import {
   Co2DailyAirQualityReportFunctionDefinition,
   filterCo2DailyAirQualityReportSims,
   formatCo2DailyAirQualityReportMessage,
-  formatCo2DailyAirQualityReportThreadParentMessage,
+  formatCo2DailyAirQualityReportSummaryMessage,
   maskImsiForDisplay,
   resolveCo2DailyAirQualityReportCriteria,
   resolveCo2DailyAirQualitySensorName,
@@ -108,7 +108,7 @@ const baseSim: SoracomSim = {
 };
 
 Deno.test({
-  name: "CO2日次空気品質レポートが正しくフォーマットされる",
+  name: "日次空気品質レポートが正しくフォーマットされる",
   sanitizeResources: false,
   sanitizeOps: false,
   fn: async () => {
@@ -322,13 +322,13 @@ Deno.test({
 });
 
 Deno.test({
-  name: "スレッド親メッセージはグループIDと実行サマリーを含む",
+  name: "サマリーメッセージはグループIDと実行サマリーを含む",
   sanitizeResources: false,
   sanitizeOps: false,
   fn: async () => {
     await new Promise((resolve) => setTimeout(resolve, 100));
 
-    const message = formatCo2DailyAirQualityReportThreadParentMessage(
+    const message = formatCo2DailyAirQualityReportSummaryMessage(
       "group-1",
       3,
       2,

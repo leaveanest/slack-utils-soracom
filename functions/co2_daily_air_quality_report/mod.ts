@@ -38,7 +38,6 @@ interface Co2DailyAirQualityReportChatClient {
     postMessage: (params: {
       channel: string;
       text: string;
-      thread_ts?: string;
       blocks?: Array<Record<string, unknown>>;
     }) => Promise<{
       ok: boolean;
@@ -59,14 +58,14 @@ interface Co2DailyAirQualityReportChatClient {
 }
 
 /**
- * CO2日次空気品質レポート関数定義
+ * 日次空気品質レポート関数定義
  *
  * 指定した SIM グループ配下の active SIM を走査し、
  * CO2 / 温度 / 湿度の要約と CO2 ピーク時間帯を Slack に投稿します。
  */
 export const Co2DailyAirQualityReportFunctionDefinition = DefineFunction({
   callback_id: "co2_daily_air_quality_report",
-  title: "CO2日次空気品質レポート",
+  title: "日次空気品質レポート",
   description:
     "指定した SIM グループの日次空気品質サマリーとCO2ピーク時間帯を生成します",
   source_file: "functions/co2_daily_air_quality_report/mod.ts",
@@ -224,18 +223,26 @@ function formatMetricSummaryBlock(
 
   return [
     label,
-    `  - ${t("soracom.messages.air_quality_metric_latest", {
-      value: formatMetricNumber(summary.latest),
-    })}`,
-    `  - ${t("soracom.messages.air_quality_metric_average", {
-      value: formatMetricNumber(summary.average),
-    })}`,
-    `  - ${t("soracom.messages.air_quality_metric_min", {
-      value: formatMetricNumber(summary.min),
-    })}`,
-    `  - ${t("soracom.messages.air_quality_metric_max", {
-      value: formatMetricNumber(summary.max),
-    })}`,
+    `  - ${
+      t("soracom.messages.air_quality_metric_latest", {
+        value: formatMetricNumber(summary.latest),
+      })
+    }`,
+    `  - ${
+      t("soracom.messages.air_quality_metric_average", {
+        value: formatMetricNumber(summary.average),
+      })
+    }`,
+    `  - ${
+      t("soracom.messages.air_quality_metric_min", {
+        value: formatMetricNumber(summary.min),
+      })
+    }`,
+    `  - ${
+      t("soracom.messages.air_quality_metric_max", {
+        value: formatMetricNumber(summary.max),
+      })
+    }`,
   ].join("\n");
 }
 
@@ -389,7 +396,7 @@ export function resolveCo2DailyAirQualitySensorName(sim: SoracomSim): string {
   return sim.simId;
 }
 
-export function formatCo2DailyAirQualityReportThreadParentMessage(
+export function formatCo2DailyAirQualityReportSummaryMessage(
   simGroupId: string,
   processedCount: number,
   reportedCount: number,
@@ -397,7 +404,7 @@ export function formatCo2DailyAirQualityReportThreadParentMessage(
 ): string {
   return [
     `${
-      t("soracom.messages.co2_daily_air_quality_report_thread_header", {
+      t("soracom.messages.co2_daily_air_quality_report_summary_header", {
         groupId: simGroupId,
       })
     }`,
@@ -429,12 +436,10 @@ async function postMarkdownMessage(
   client: Co2DailyAirQualityReportChatClient,
   channel: string,
   text: string,
-  threadTs?: string,
 ): Promise<string | undefined> {
   const response = await client.chat.postMessage({
     channel,
     text,
-    ...(threadTs ? { thread_ts: threadTs } : {}),
     blocks: buildMarkdownBlocks(text),
   });
 
@@ -585,32 +590,27 @@ export default SlackFunction(
 
       const chatClient =
         client as unknown as Co2DailyAirQualityReportChatClient;
-      const initialThreadMessage =
-        formatCo2DailyAirQualityReportThreadParentMessage(
+      const initialSummaryMessage =
+        formatCo2DailyAirQualityReportSummaryMessage(
           simGroupId,
           targetSims.length,
           0,
           failedCount,
         );
-      const threadTs = await postMarkdownMessage(
+      const summaryMessageTs = await postMarkdownMessage(
         chatClient,
         channelId,
-        initialThreadMessage,
+        initialSummaryMessage,
       );
 
-      if (!threadTs) {
+      if (!summaryMessageTs) {
         throw new Error(t("errors.data_not_found"));
       }
 
       let reportedCount = 0;
       for (const report of generatedReports) {
         try {
-          await postMarkdownMessage(
-            chatClient,
-            channelId,
-            report,
-            threadTs,
-          );
+          await postMarkdownMessage(chatClient, channelId, report);
           reportedCount += 1;
         } catch (error) {
           failedCount += 1;
@@ -618,7 +618,7 @@ export default SlackFunction(
             ? error.message
             : String(error);
           console.error(
-            "co2_daily_air_quality_report thread reply error:",
+            "co2_daily_air_quality_report channel post error:",
             errorMessage,
           );
         }
@@ -628,7 +628,7 @@ export default SlackFunction(
         throw new Error(t("soracom.errors.daily_reports_all_failed"));
       }
 
-      const message = formatCo2DailyAirQualityReportThreadParentMessage(
+      const message = formatCo2DailyAirQualityReportSummaryMessage(
         simGroupId,
         targetSims.length,
         reportedCount,
@@ -636,13 +636,18 @@ export default SlackFunction(
       );
 
       try {
-        await updateMarkdownMessage(chatClient, channelId, threadTs, message);
+        await updateMarkdownMessage(
+          chatClient,
+          channelId,
+          summaryMessageTs,
+          message,
+        );
       } catch (error) {
         const errorMessage = error instanceof Error
           ? error.message
           : String(error);
         console.error(
-          "co2_daily_air_quality_report thread parent update error:",
+          "co2_daily_air_quality_report summary update error:",
           errorMessage,
         );
       }

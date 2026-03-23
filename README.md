@@ -190,8 +190,7 @@ Builder や利用者独自の Workflow から Function を custom step
 
 このリポジトリでは、Trigger は補助的なサンプルとして扱います。
 
-- 同梱する sample trigger は
-  `triggers/air_quality_alert_with_snapshot_trigger.ts` の 1 件だけです。
+- 現時点で同梱している sample trigger はありません。
 - `triggers/` 配下のファイルは、動作確認や利用例のための例です。
 - 収録する sample は、基本的に手動実行しやすい link trigger
   (`TriggerTypes.Shortcut`) に寄せます。
@@ -230,17 +229,6 @@ Workflow を優先します。SORACOM 本体が直接提供する Slack
 
 - `co2_daily_air_quality_report_workflow`
   - CO2 / 温度 / 湿度の推移を日次で要約し、CO2 ピーク時間帯も示す
-- `ventilation_effect_review_workflow`
-  - 換気対応の前後で CO2 / 温度 / 湿度の改善を比較する
-
-### SoraCam と CO2 センサーの組み合わせ
-
-- `air_quality_alert_with_snapshot_workflow`
-  - CO2 / 温度 / 湿度の基準逸脱が出た直近時刻の近傍カメラ画像を添えて状況確認
-- `ventilation_check_with_camera_workflow`
-  - 換気対応後の改善状況を数値と画像で確認
-- `environment_and_camera_daily_digest_workflow`
-  - 空気環境の変化とカメラ活動量を日次でまとめて確認
 
 ## テスト
 
@@ -664,9 +652,6 @@ deno task check
 
 # 3. Slack CLI でデプロイ
 slack deploy --env production
-
-# 4. 必要に応じてトリガーを作成
-slack trigger create --trigger-def triggers/air_quality_alert_with_snapshot_trigger.ts
 ```
 
 **注意:**
@@ -682,7 +667,7 @@ slack trigger create --trigger-def triggers/air_quality_alert_with_snapshot_trig
 slack-utils-soracom/
 ├── functions/         # Slack Functions（各関数にtest.tsを配置）
 ├── workflows/         # 推奨構成やサンプルの Slack Workflows
-├── triggers/          # 任意のサンプル Trigger（同梱は1件のみ）
+├── triggers/          # 任意のサンプル Trigger
 ├── docs/              # ドキュメント（テストガイド等）
 ├── assets/            # アイコンなどの静的アセット
 ├── .github/           # CI/CD と Issue テンプレート
