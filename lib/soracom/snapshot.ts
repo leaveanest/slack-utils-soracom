@@ -1,11 +1,21 @@
 import { t } from "../i18n/mod.ts";
 import type { SoracomClient } from "./client.ts";
+import { runWithImmediateRetry } from "./immediate_retry.ts";
 import type { SoraCamImageExport, SoraCamRecording } from "./types.ts";
 
 const RECORDING_LOOKBACK_MS = 6 * 60 * 60 * 1000;
 const RECORDING_OFFSET_MS = 10 * 1000;
 const EXPORT_POLL_INTERVAL_MS = 2 * 1000;
 const EXPORT_TIMEOUT_MS = 60 * 1000;
+
+class RetryableSoraCamSnapshotDownloadError extends Error {
+  response: Response;
+
+  constructor(response: Response) {
+    super(`Retryable SoraCam snapshot download response: ${response.status}`);
+    this.response = response;
+  }
+}
 
 type SoraCamSnapshotClient = Pick<
   SoracomClient,
@@ -165,18 +175,42 @@ export async function downloadSoraCamSnapshot(
   deviceId: string,
   imageUrl: string,
 ): Promise<Uint8Array> {
-  const response = await fetch(imageUrl);
+  try {
+    return await runWithImmediateRetry(
+      async () => {
+        const response = await fetch(imageUrl);
 
-  if (!response.ok) {
-    throw new Error(
-      t("soracom.errors.soracam_snapshot_download_failed", {
-        deviceId,
-        status: response.status,
-      }),
+        if (!response.ok && response.status >= 500) {
+          throw new RetryableSoraCamSnapshotDownloadError(response);
+        }
+
+        if (!response.ok) {
+          throw new Error(
+            t("soracom.errors.soracam_snapshot_download_failed", {
+              deviceId,
+              status: response.status,
+            }),
+          );
+        }
+
+        return new Uint8Array(await response.arrayBuffer());
+      },
+      (error) =>
+        error instanceof RetryableSoraCamSnapshotDownloadError ||
+        error instanceof TypeError,
     );
-  }
+  } catch (error) {
+    if (error instanceof RetryableSoraCamSnapshotDownloadError) {
+      throw new Error(
+        t("soracom.errors.soracam_snapshot_download_failed", {
+          deviceId,
+          status: error.response.status,
+        }),
+      );
+    }
 
-  return new Uint8Array(await response.arrayBuffer());
+    throw error;
+  }
 }
 
 function sanitizeFileNameSegment(value: string): string {

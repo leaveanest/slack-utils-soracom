@@ -1,4 +1,4 @@
-import { assertEquals } from "std/testing/asserts.ts";
+import { assertEquals, assertRejects } from "std/testing/asserts.ts";
 import { stub } from "std/testing/mock.ts";
 import {
   createSoracomClientFromEnv,
@@ -7,6 +7,21 @@ import {
   normalizeSoracomSim,
   SoracomClient,
 } from "./mod.ts";
+
+function stubImmediateTimeout() {
+  return stub(
+    globalThis,
+    "setTimeout",
+    ((
+      handler: (...args: unknown[]) => void,
+      _timeout?: number,
+      ...args: unknown[]
+    ) => {
+      handler(...args);
+      return 0 as never;
+    }) as unknown as typeof setTimeout,
+  );
+}
 
 Deno.test("formatBytes: 0バイトを正常にフォーマットする", () => {
   assertEquals(formatBytes(0), "0 B");
@@ -742,6 +757,163 @@ Deno.test("listSoraCamRecordingsAndEvents: null 応答を空配列として扱�
       records: [],
       events: [],
     });
+  } finally {
+    fetchStub.restore();
+  }
+});
+
+Deno.test("getSoraCamImageExport: 一時的な 500 応答後に再試行で成功する", async () => {
+  const client = new SoracomClient({
+    authKeyId: "key-id",
+    authKey: "secret",
+    coverageType: "jp",
+  });
+
+  let exportStatusCalls = 0;
+  const fetchStub = stub(
+    globalThis,
+    "fetch",
+    (input: string | URL | Request) => {
+      const url = typeof input === "string"
+        ? input
+        : input instanceof URL
+        ? input.toString()
+        : input.url;
+
+      if (url.endsWith("/auth")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              apiKey: "api-key",
+              token: "api-token",
+            }),
+            {
+              status: 200,
+              headers: {
+                "Content-Type": "application/json",
+              },
+            },
+          ),
+        );
+      }
+
+      const requestUrl = new URL(url);
+      assertEquals(
+        requestUrl.pathname,
+        "/v1/sora_cam/devices/device-1/images/exports/export-1",
+      );
+      exportStatusCalls += 1;
+
+      if (exportStatusCalls === 1) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              message: "temporary_error",
+            }),
+            {
+              status: 500,
+              headers: {
+                "Content-Type": "application/json",
+              },
+            },
+          ),
+        );
+      }
+
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            exportId: "export-1",
+            deviceId: "device-1",
+            status: "completed",
+            url: "https://image.local/device-1.jpg",
+            requestedTime: 1700000000000,
+            completedTime: 1700000001000,
+          }),
+          {
+            status: 200,
+            headers: {
+              "Content-Type": "application/json",
+            },
+          },
+        ),
+      );
+    },
+  );
+  const setTimeoutStub = stubImmediateTimeout();
+
+  try {
+    const result = await client.getSoraCamImageExport("device-1", "export-1");
+
+    assertEquals(exportStatusCalls, 2);
+    assertEquals(result.status, "completed");
+    assertEquals(result.url, "https://image.local/device-1.jpg");
+  } finally {
+    fetchStub.restore();
+    setTimeoutStub.restore();
+  }
+});
+
+Deno.test("getSoraCamImageExport: 4xx 応答は再試行せず即失敗する", async () => {
+  const client = new SoracomClient({
+    authKeyId: "key-id",
+    authKey: "secret",
+    coverageType: "jp",
+  });
+
+  let exportStatusCalls = 0;
+  const fetchStub = stub(
+    globalThis,
+    "fetch",
+    (input: string | URL | Request) => {
+      const url = typeof input === "string"
+        ? input
+        : input instanceof URL
+        ? input.toString()
+        : input.url;
+
+      if (url.endsWith("/auth")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              apiKey: "api-key",
+              token: "api-token",
+            }),
+            {
+              status: 200,
+              headers: {
+                "Content-Type": "application/json",
+              },
+            },
+          ),
+        );
+      }
+
+      exportStatusCalls += 1;
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            message: "not_found",
+          }),
+          {
+            status: 404,
+            headers: {
+              "Content-Type": "application/json",
+            },
+          },
+        ),
+      );
+    },
+  );
+
+  try {
+    await assertRejects(
+      () => client.getSoraCamImageExport("device-1", "export-1"),
+      Error,
+      "404",
+    );
+
+    assertEquals(exportStatusCalls, 1);
   } finally {
     fetchStub.restore();
   }

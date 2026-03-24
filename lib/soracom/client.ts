@@ -17,6 +17,7 @@
 
 import { type EnvVars, getRuntimeEnv } from "../env.ts";
 import { t } from "../i18n/mod.ts";
+import { runWithImmediateRetry } from "./immediate_retry.ts";
 import type {
   AirStatsDataPoint,
   AirStatsResult,
@@ -116,6 +117,15 @@ interface RawSoraCamDevice {
   lastConnectedTime?: number | string;
   name?: string;
   status?: string;
+}
+
+class RetryableSoraCamExportStatusError extends Error {
+  response: Response;
+
+  constructor(response: Response) {
+    super(`Retryable SoraCam export status response: ${response.status}`);
+    this.response = response;
+  }
 }
 
 /** APIベースURL */
@@ -457,6 +467,41 @@ export class SoracomClient {
     this.token = data.token;
   }
 
+  private async ensureAuthenticated(): Promise<void> {
+    if (!this.apiKey || !this.token) {
+      await this.authenticate();
+    }
+  }
+
+  private async fetchAuthorized(
+    path: string,
+    options: RequestInit = {},
+  ): Promise<Response> {
+    return await fetch(`${this.baseUrl}${path}`, {
+      ...options,
+      headers: {
+        "X-Soracom-API-Key": this.apiKey!,
+        "X-Soracom-Token": this.token!,
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  private async createApiRequestError(response: Response): Promise<Error> {
+    const errorBody: SoracomApiError = await response.json().catch(() => ({
+      code: "unknown",
+      message: response.statusText,
+    }));
+
+    return new Error(
+      t("soracom.errors.api_request_failed", {
+        status: response.status,
+        message: errorBody.message,
+      }),
+    );
+  }
+
   /**
    * 認証済みHTTPリクエストを送信します
    *
@@ -469,31 +514,12 @@ export class SoracomClient {
     path: string,
     options: RequestInit = {},
   ): Promise<Response> {
-    if (!this.apiKey || !this.token) {
-      await this.authenticate();
-    }
+    await this.ensureAuthenticated();
 
-    const response = await fetch(`${this.baseUrl}${path}`, {
-      ...options,
-      headers: {
-        "X-Soracom-API-Key": this.apiKey!,
-        "X-Soracom-Token": this.token!,
-        "Content-Type": "application/json",
-        ...options.headers,
-      },
-    });
+    const response = await this.fetchAuthorized(path, options);
 
     if (!response.ok) {
-      const errorBody: SoracomApiError = await response.json().catch(() => ({
-        code: "unknown",
-        message: response.statusText,
-      }));
-      throw new Error(
-        t("soracom.errors.api_request_failed", {
-          status: response.status,
-          message: errorBody.message,
-        }),
-      );
+      throw await this.createApiRequestError(response);
     }
 
     return response;
@@ -807,9 +833,7 @@ export class SoracomClient {
     const parsedData = await response.json().catch(() => null) as
       | Partial<SoraCamRecordingsAndEvents>
       | null;
-    const data = parsedData && typeof parsedData === "object"
-      ? parsedData
-      : {};
+    const data = parsedData && typeof parsedData === "object" ? parsedData : {};
 
     return {
       records: Array.isArray(data.records) ? data.records : [],
@@ -902,11 +926,39 @@ export class SoracomClient {
     deviceId: string,
     exportId: string,
   ): Promise<SoraCamImageExport> {
-    const response = await this.request(
-      `/sora_cam/devices/${deviceId}/images/exports/${exportId}`,
-    );
-    const result: SoraCamImageExport = await response.json();
-    return result;
+    const path = `/sora_cam/devices/${deviceId}/images/exports/${exportId}`;
+
+    await this.ensureAuthenticated();
+
+    try {
+      const response = await runWithImmediateRetry(
+        async () => {
+          const response = await this.fetchAuthorized(path);
+
+          if (!response.ok && response.status >= 500) {
+            throw new RetryableSoraCamExportStatusError(response);
+          }
+
+          return response;
+        },
+        (error) =>
+          error instanceof RetryableSoraCamExportStatusError ||
+          error instanceof TypeError,
+      );
+
+      if (!response.ok) {
+        throw await this.createApiRequestError(response);
+      }
+
+      const result: SoraCamImageExport = await response.json();
+      return result;
+    } catch (error) {
+      if (error instanceof RetryableSoraCamExportStatusError) {
+        throw await this.createApiRequestError(error.response);
+      }
+
+      throw error;
+    }
   }
 }
 

@@ -1,12 +1,14 @@
 import { assertEquals } from "std/testing/asserts.ts";
 import { stub } from "std/testing/mock.ts";
 import { initI18n, setLocale } from "../../lib/i18n/mod.ts";
+import { runWithImmediateRetry } from "../../lib/soracom/immediate_retry.ts";
 import {
   buildAllSoraCamImageExportJobKey,
   buildAllSoraCamImageExportTaskKey,
   getAllSoraCamImageExportJob,
   getAllSoraCamImageExportTask,
   listAllSoraCamImageExportTasks,
+  upsertAllSoraCamImageExportTask,
 } from "../../lib/soracom/mod.ts";
 import type {
   SoraCamDevice,
@@ -27,6 +29,21 @@ import {
 async function prepareLocale(locale: "en" | "ja" = "ja"): Promise<void> {
   await initI18n();
   setLocale(locale);
+}
+
+function stubImmediateTimeout() {
+  return stub(
+    globalThis,
+    "setTimeout",
+    ((
+      handler: (...args: unknown[]) => void,
+      _timeout?: number,
+      ...args: unknown[]
+    ) => {
+      handler(...args);
+      return 0 as never;
+    }) as unknown as typeof setTimeout,
+  );
 }
 
 function createExportAllClient() {
@@ -132,6 +149,7 @@ function createExportAllClient() {
 }
 
 type ExportBehavior = SoraCamImageExport | Error;
+type ExportBehaviorSequence = ExportBehavior | ExportBehavior[];
 
 function buildExportResult(
   deviceId: string,
@@ -162,7 +180,7 @@ function createDevices(count: number): SoraCamDevice[] {
 function createSoracomClientMock(params: {
   devices: SoraCamDevice[];
   initialExports?: Record<string, ExportBehavior>;
-  resumedExports?: Record<string, ExportBehavior>;
+  resumedExports?: Record<string, ExportBehaviorSequence>;
   recordingEndTime?: number;
 }) {
   const listDeviceCalls: string[] = [];
@@ -170,6 +188,18 @@ function createSoracomClientMock(params: {
   const exportCalls: string[] = [];
   const getExportCalls: Array<{ deviceId: string; exportId: string }> = [];
   const recordingEndTime = params.recordingEndTime ?? 1700000300000;
+
+  const nextResumedBehavior = (
+    deviceId: string,
+  ): ExportBehavior | undefined => {
+    const behavior = params.resumedExports?.[deviceId];
+
+    if (Array.isArray(behavior)) {
+      return behavior.shift();
+    }
+
+    return behavior;
+  };
 
   const soracomClient = {
     listSoraCamDevices() {
@@ -201,17 +231,22 @@ function createSoracomClientMock(params: {
     },
     getSoraCamImageExport(deviceId: string, exportId: string) {
       getExportCalls.push({ deviceId, exportId });
-      const behavior = params.resumedExports?.[deviceId];
-      if (!behavior) {
-        throw new Error(`missing resumed export for ${deviceId}`);
-      }
-      if (behavior instanceof Error) {
-        throw behavior;
-      }
-      return Promise.resolve({
-        ...behavior,
-        exportId: behavior.exportId || exportId,
-      });
+      return runWithImmediateRetry(
+        async () => {
+          const behavior = nextResumedBehavior(deviceId);
+          if (!behavior) {
+            throw new Error(`missing resumed export for ${deviceId}`);
+          }
+          if (behavior instanceof Error) {
+            throw behavior;
+          }
+          return {
+            ...behavior,
+            exportId: behavior.exportId || exportId,
+          };
+        },
+        (error) => error instanceof TypeError,
+      );
     },
   };
 
@@ -473,6 +508,15 @@ Deno.test("子 run が即完了した台をアップロードしたら次の待�
       now: 1700000400000,
     });
 
+    await processAllSoraCamImageExport({
+      soracomClient,
+      client: client as never,
+      channelId: "C123",
+      jobKey: "C123",
+      taskKey: buildAllSoraCamImageExportTaskKey("C123", "cam-1"),
+      now: 1700000405000,
+    });
+
     const result = await processAllSoraCamImageExport({
       soracomClient,
       client: client as never,
@@ -602,6 +646,107 @@ Deno.test("子 run が失敗した台は failed にして次の待機台を補�
 
   assertEquals(cam1?.status, "failed");
   assertEquals(cam6?.status, "processing");
+});
+
+Deno.test("子 run の export status 一時エラーは同一 run 内で回復できる", async () => {
+  await prepareLocale("ja");
+
+  const fetchStub = stub(
+    globalThis,
+    "fetch",
+    (input: string | URL | Request) => {
+      const url = typeof input === "string"
+        ? input
+        : input instanceof URL
+        ? input.toString()
+        : input.url;
+
+      if (url === "https://upload.local/files") {
+        return Promise.resolve(new Response(null, { status: 200 }));
+      }
+
+      if (url.startsWith("https://image.local/")) {
+        return Promise.resolve(
+          new Response(new Uint8Array([1, 2, 3]), { status: 200 }),
+        );
+      }
+
+      throw new Error(`unexpected fetch: ${url}`);
+    },
+  );
+  const setTimeoutStub = stubImmediateTimeout();
+
+  try {
+    const devices = createDevices(6);
+    const { client, triggerCreates } = createExportAllClient();
+    const { soracomClient, exportCalls, getExportCalls } =
+      createSoracomClientMock({
+        devices,
+        resumedExports: {
+          "cam-1": [
+            new TypeError("temporary_network_error"),
+            buildExportResult(
+              "cam-1",
+              "completed",
+              "exp-cam-1",
+              "https://image.local/cam-1.jpg",
+            ),
+          ],
+        },
+      });
+
+    await processAllSoraCamImageExport({
+      soracomClient,
+      client: client as never,
+      channelId: "C123",
+      now: 1700000400000,
+    });
+
+    const cam1TaskBeforeResume = await getAllSoraCamImageExportTask(
+      client as never,
+      "C123:cam-1",
+    );
+    if (!cam1TaskBeforeResume) {
+      throw new Error("cam-1 task not found");
+    }
+
+    await upsertAllSoraCamImageExportTask(client as never, {
+      ...cam1TaskBeforeResume,
+      exportId: "exp-cam-1",
+      snapshotTime: 1700000290000,
+      updatedAt: new Date(1700000404000).toISOString(),
+    });
+
+    const result = await processAllSoraCamImageExport({
+      soracomClient,
+      client: client as never,
+      channelId: "C123",
+      jobKey: "C123",
+      taskKey: buildAllSoraCamImageExportTaskKey("C123", "cam-1"),
+      now: 1700000405000,
+    });
+
+    const cam1 = await getAllSoraCamImageExportTask(
+      client as never,
+      "C123:cam-1",
+    );
+    const cam6 = await getAllSoraCamImageExportTask(
+      client as never,
+      "C123:cam-6",
+    );
+
+    assertEquals(exportCalls, []);
+    assertEquals(getExportCalls.length, 1);
+    assertEquals(triggerCreates.length, ALL_SORACAM_EXPORT_PARALLELISM + 1);
+    assertEquals(result.completedCount, 1);
+    assertEquals(result.processingCount, 5);
+    assertEquals(result.failedCount, 0);
+    assertEquals(cam1?.status, "uploaded");
+    assertEquals(cam6?.status, "processing");
+  } finally {
+    fetchStub.restore();
+    setTimeoutStub.restore();
+  }
 });
 
 Deno.test("対象デバイスが0台のときはジョブを作らずメッセージだけ投稿する", async () => {

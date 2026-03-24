@@ -43,7 +43,7 @@ Function / Workflow を優先します。SORACOM 本体が直接提供する Sla
 
 ```bash
 # リポジトリを取得
-git clone https://github.com/your-org/slack-utils-soracom.git
+git clone https://github.com/leaveanest/slack-utils-soracom.git
 cd slack-utils-soracom
 
 # 環境変数の設定
@@ -149,16 +149,16 @@ slack run workflows/soracom_sim_anomaly_alert_workflow
 
 Functions は custom step として再利用する中心的な提供物です。
 
-| Function                                                                                             | 役割                                 |
-| ---------------------------------------------------------------------------------------------------- | ------------------------------------ |
-| [`functions/soracom_get_harvest_data/mod.ts`](functions/soracom_get_harvest_data/mod.ts)             | Harvest Data 取得と表示              |
-| [`functions/soracom_list_soracam_devices/mod.ts`](functions/soracom_list_soracam_devices/mod.ts)     | ソラカメ デバイス一覧取得             |
-| [`functions/soracom_export_soracam_image/mod.ts`](functions/soracom_export_soracam_image/mod.ts)     | ソラカメ 画像スナップショット         |
-| [`functions/soracom_sim_anomaly_alert/mod.ts`](functions/soracom_sim_anomaly_alert/mod.ts)           | 異常ステータスの判定と共有内容の生成 |
+| Function                                                                                             | 役割                                     |
+| ---------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| [`functions/soracom_get_harvest_data/mod.ts`](functions/soracom_get_harvest_data/mod.ts)             | Harvest Data 取得と表示                  |
+| [`functions/soracom_list_soracam_devices/mod.ts`](functions/soracom_list_soracam_devices/mod.ts)     | ソラカメ デバイス一覧取得                |
+| [`functions/soracom_export_soracam_image/mod.ts`](functions/soracom_export_soracam_image/mod.ts)     | ソラカメ 画像スナップショット            |
+| [`functions/soracom_sim_anomaly_alert/mod.ts`](functions/soracom_sim_anomaly_alert/mod.ts)           | 異常ステータスの判定と共有内容の生成     |
 | [`functions/soracom_soracam_motion_capture/mod.ts`](functions/soracom_soracam_motion_capture/mod.ts) | 直近イベントの抽出と画像スナップショット |
-| [`functions/soracom_sim_usage_report/mod.ts`](functions/soracom_sim_usage_report/mod.ts)             | SIM 通信量集計とレポート生成         |
-| [`functions/co2_daily_air_quality_report/mod.ts`](functions/co2_daily_air_quality_report/mod.ts)     | 空気品質サマリーとピーク時間帯の生成 |
-| [`functions/co2_air_quality_anomaly_alert/mod.ts`](functions/co2_air_quality_anomaly_alert/mod.ts)   | 空気品質異常の判定と通知内容の生成   |
+| [`functions/soracom_sim_usage_report/mod.ts`](functions/soracom_sim_usage_report/mod.ts)             | SIM 通信量集計とレポート生成             |
+| [`functions/co2_daily_air_quality_report/mod.ts`](functions/co2_daily_air_quality_report/mod.ts)     | 空気品質サマリーとピーク時間帯の生成     |
+| [`functions/co2_air_quality_anomaly_alert/mod.ts`](functions/co2_air_quality_anomaly_alert/mod.ts)   | 空気品質異常の判定と通知内容の生成       |
 
 ### Workflows
 
@@ -177,17 +177,17 @@ Builder や利用者独自の Workflow から Function を custom step
 
 #### 定期レポート・可視化
 
-| Workflow                                                                                                   | 用途                       |
-| ---------------------------------------------------------------------------------------------------------- | -------------------------- |
-| [`workflows/soracom_sim_usage_report_workflow.ts`](workflows/soracom_sim_usage_report_workflow.ts)         | SIM の通信量サマリーを生成 |
-| [`workflows/soracom_get_harvest_data_workflow.ts`](workflows/soracom_get_harvest_data_workflow.ts)         | Harvest Data を確認        |
+| Workflow                                                                                                   | 用途                        |
+| ---------------------------------------------------------------------------------------------------------- | --------------------------- |
+| [`workflows/soracom_sim_usage_report_workflow.ts`](workflows/soracom_sim_usage_report_workflow.ts)         | SIM の通信量サマリーを生成  |
+| [`workflows/soracom_get_harvest_data_workflow.ts`](workflows/soracom_get_harvest_data_workflow.ts)         | Harvest Data を確認         |
 | [`workflows/soracom_list_soracam_devices_workflow.ts`](workflows/soracom_list_soracam_devices_workflow.ts) | ソラカメ デバイス一覧を確認 |
-| [`workflows/co2_daily_air_quality_report_workflow.ts`](workflows/co2_daily_air_quality_report_workflow.ts) | 空気品質レポートを生成     |
+| [`workflows/co2_daily_air_quality_report_workflow.ts`](workflows/co2_daily_air_quality_report_workflow.ts) | 空気品質レポートを生成      |
 
 #### 現場確認・オペレーション
 
-| Workflow                                                                                                   | 用途                                 |
-| ---------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| Workflow                                                                                                   | 用途                                                |
+| ---------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
 | [`workflows/soracom_export_soracam_image_workflow.ts`](workflows/soracom_export_soracam_image_workflow.ts) | ソラカメ 録画から画像スナップショットを取得して確認 |
 
 ### Triggers

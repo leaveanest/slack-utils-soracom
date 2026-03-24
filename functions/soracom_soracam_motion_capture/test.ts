@@ -17,6 +17,21 @@ async function prepareLocale(locale: "en" | "ja" = "ja"): Promise<void> {
   setLocale(locale);
 }
 
+function stubImmediateTimeout() {
+  return stub(
+    globalThis,
+    "setTimeout",
+    ((
+      handler: (...args: unknown[]) => void,
+      _timeout?: number,
+      ...args: unknown[]
+    ) => {
+      handler(...args);
+      return 0 as never;
+    }) as unknown as typeof setTimeout,
+  );
+}
+
 function createMotionCaptureClient(
   store: Record<string, Record<string, unknown>> = {},
 ) {
@@ -424,6 +439,66 @@ Deno.test("1イベント失敗でも次へ進み累計失敗数を更新する",
     assertEquals(job?.status, "completed");
   } finally {
     fetchStub.restore();
+  }
+});
+
+Deno.test("画像ダウンロードの一時的な 500 は再試行後にアップロードできる", async () => {
+  await prepareLocale("ja");
+
+  let imageFetchCount = 0;
+  const fetchStub = stub(
+    globalThis,
+    "fetch",
+    (input: string | URL | Request) => {
+      const url = typeof input === "string"
+        ? input
+        : input instanceof URL
+        ? input.toString()
+        : input.url;
+
+      if (url === "https://upload.local/files") {
+        return Promise.resolve(new Response(null, { status: 200 }));
+      }
+
+      if (url.startsWith("https://image.local/")) {
+        imageFetchCount += 1;
+
+        if (imageFetchCount === 1) {
+          return Promise.resolve(new Response(null, { status: 500 }));
+        }
+
+        return Promise.resolve(
+          new Response(new Uint8Array([1, 2, 3]), { status: 200 }),
+        );
+      }
+
+      throw new Error(`unexpected fetch: ${url}`);
+    },
+  );
+  const setTimeoutStub = stubImmediateTimeout();
+
+  try {
+    const { client } = createMotionCaptureClient();
+    const { soracomClient } = createSoracomClientMock([1700003000000]);
+
+    const result = await processMotionCaptureBatch({
+      client,
+      soracomClient,
+      channelId: "C123",
+      deviceId: "dev-1",
+      now: 1700007000000,
+    });
+
+    const job = await getMotionCaptureJob(client, "C123", "dev-1");
+
+    assertEquals(imageFetchCount, 2);
+    assertEquals(result.exportedImages, 1);
+    assertEquals(job?.uploadedCount, 1);
+    assertEquals(job?.failedCount, 0);
+    assertEquals(job?.status, "completed");
+  } finally {
+    fetchStub.restore();
+    setTimeoutStub.restore();
   }
 });
 
