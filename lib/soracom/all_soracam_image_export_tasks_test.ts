@@ -6,7 +6,24 @@ import {
   upsertAllSoraCamImageExportTask,
 } from "./all_soracam_image_export_tasks.ts";
 
-function createMockClient(store: Record<string, Record<string, unknown>> = {}) {
+type QueryPage = {
+  cursor?: string;
+  items: Array<Record<string, unknown>>;
+  nextCursor?: string;
+};
+
+function createMockClient(
+  store: Record<string, Record<string, unknown>> = {},
+  options?: {
+    queryPages?: QueryPage[];
+  },
+) {
+  const queryPageMap = new Map(
+    (options?.queryPages ?? []).map((
+      page,
+    ) => [page.cursor ?? "__first__", page]),
+  );
+
   return {
     apps: {
       datastore: {
@@ -22,10 +39,31 @@ function createMockClient(store: Record<string, Record<string, unknown>> = {}) {
           store[params.item.task_key as string] = params.item;
           return Promise.resolve({ ok: true });
         },
-        query: (_params: { datastore: string }) => {
+        query: (params: {
+          datastore: string;
+          cursor?: string;
+          expression?: string;
+          expression_attributes?: Record<string, string>;
+          expression_values?: Record<string, unknown>;
+          limit?: number;
+        }) => {
+          const queryPage = queryPageMap.get(params.cursor ?? "__first__");
+          if (queryPage) {
+            return Promise.resolve({
+              ok: true,
+              items: queryPage.items,
+              ...(queryPage.nextCursor
+                ? { response_metadata: { next_cursor: queryPage.nextCursor } }
+                : {}),
+            });
+          }
+
+          const jobKey = params.expression_values?.[":job_key"];
           return Promise.resolve({
             ok: true,
-            items: Object.values(store),
+            items: Object.values(store).filter((item) =>
+              typeof jobKey === "string" ? item.job_key === jobKey : true
+            ),
           });
         },
         delete: (params: { datastore: string; id: string }) => {
@@ -83,3 +121,58 @@ Deno.test("全台画像スナップショットタスクを保存して一覧取
   assertEquals(tasks.map((entry) => entry.deviceId), ["cam-1", "cam-2"]);
   assertEquals(tasks[1].status, "processing");
 });
+
+Deno.test(
+  "全台画像スナップショットタスク一覧はカーソルページングを最後までたどる",
+  async () => {
+    const client = createMockClient({}, {
+      queryPages: [
+        {
+          items: [],
+          nextCursor: "cursor-2",
+        },
+        {
+          cursor: "cursor-2",
+          items: [
+            {
+              task_key: "C123:cam-2",
+              job_key: "C123",
+              channel_id: "C123",
+              device_id: "cam-2",
+              device_name: "Office",
+              sort_index: 1,
+              export_id: "",
+              status: "queued",
+              image_url: "",
+              created_at: "2026-03-19T01:00:00.000Z",
+              updated_at: "2026-03-19T01:00:00.000Z",
+            },
+          ],
+          nextCursor: "cursor-3",
+        },
+        {
+          cursor: "cursor-3",
+          items: [
+            {
+              task_key: "C123:cam-1",
+              job_key: "C123",
+              channel_id: "C123",
+              device_id: "cam-1",
+              device_name: "Entrance",
+              sort_index: 0,
+              export_id: "",
+              status: "queued",
+              image_url: "",
+              created_at: "2026-03-19T01:00:00.000Z",
+              updated_at: "2026-03-19T01:00:00.000Z",
+            },
+          ],
+        },
+      ],
+    });
+
+    const tasks = await listAllSoraCamImageExportTasks(client, "C123");
+
+    assertEquals(tasks.map((entry) => entry.deviceId), ["cam-1", "cam-2"]);
+  },
+);

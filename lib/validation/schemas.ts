@@ -278,6 +278,115 @@ export function createAirQualityReportPeriodSchema() {
 }
 
 /**
+ * GPSマルチユニット期間スキーマを生成
+ * 値: "1h" または "1d"
+ *
+ * @returns Zodスキーマ
+ */
+export function createGpsMultiunitPeriodSchema() {
+  return z.string().superRefine((val, ctx) => {
+    if (val !== "1h" && val !== "1d") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.invalid_enum_value,
+        options: ["1h", "1d"],
+        received: val,
+        message: t("soracom.errors.validation.gps_multiunit_period_invalid"),
+      });
+    }
+  });
+}
+
+/**
+ * GPSマルチユニット表示サンプル数スキーマを生成
+ * 値: 1〜24 の整数
+ *
+ * @returns Zodスキーマ
+ */
+export function createGpsMultiunitSampleCountSchema() {
+  return z.unknown().superRefine((val, ctx) => {
+    if (
+      typeof val !== "number" ||
+      !Number.isFinite(val) ||
+      !Number.isInteger(val) ||
+      val < 1 ||
+      val > 24
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: t(
+          "soracom.errors.validation.gps_multiunit_sample_count_invalid",
+        ),
+      });
+    }
+  }).transform((val) => val as number);
+}
+
+/**
+ * 緯度スキーマを生成
+ * 値: -90〜90 の有限数
+ *
+ * @returns Zodスキーマ
+ */
+export function createLatitudeSchema() {
+  return z.unknown().superRefine((val, ctx) => {
+    if (
+      typeof val !== "number" ||
+      !Number.isFinite(val) ||
+      val < -90 ||
+      val > 90
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: t("soracom.errors.validation.latitude_invalid"),
+      });
+    }
+  }).transform((val) => val as number);
+}
+
+/**
+ * 経度スキーマを生成
+ * 値: -180〜180 の有限数
+ *
+ * @returns Zodスキーマ
+ */
+export function createLongitudeSchema() {
+  return z.unknown().superRefine((val, ctx) => {
+    if (
+      typeof val !== "number" ||
+      !Number.isFinite(val) ||
+      val < -180 ||
+      val > 180
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: t("soracom.errors.validation.longitude_invalid"),
+      });
+    }
+  }).transform((val) => val as number);
+}
+
+/**
+ * ジオフェンス半径スキーマを生成
+ * 値: 0 より大きい有限数
+ *
+ * @returns Zodスキーマ
+ */
+export function createRadiusMetersSchema() {
+  return z.unknown().superRefine((val, ctx) => {
+    if (
+      typeof val !== "number" ||
+      !Number.isFinite(val) ||
+      val <= 0
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: t("soracom.errors.validation.radius_meters_invalid"),
+      });
+    }
+  }).transform((val) => val as number);
+}
+
+/**
  * i18n対応のソラカメデバイスIDスキーマを生成
  * 形式: 英数字とハイフン
  *
@@ -338,6 +447,32 @@ export const airQualityReportPeriodSchema =
   createAirQualityReportPeriodSchema();
 
 /**
+ * GPSマルチユニット期間スキーマ（デフォルトインスタンス）
+ */
+export const gpsMultiunitPeriodSchema = createGpsMultiunitPeriodSchema();
+
+/**
+ * GPSマルチユニット表示サンプル数スキーマ（デフォルトインスタンス）
+ */
+export const gpsMultiunitSampleCountSchema =
+  createGpsMultiunitSampleCountSchema();
+
+/**
+ * 緯度スキーマ（デフォルトインスタンス）
+ */
+export const latitudeSchema = createLatitudeSchema();
+
+/**
+ * 経度スキーマ（デフォルトインスタンス）
+ */
+export const longitudeSchema = createLongitudeSchema();
+
+/**
+ * 半径メートルスキーマ（デフォルトインスタンス）
+ */
+export const radiusMetersSchema = createRadiusMetersSchema();
+
+/**
  * ソラカメデバイスID スキーマ（デフォルトインスタンス）
  */
 export const soraCamDeviceIdSchema = createSoraCamDeviceIdSchema();
@@ -357,6 +492,15 @@ export type StatsPeriod = z.infer<ReturnType<typeof createStatsPeriodSchema>>;
 export type AirQualityReportPeriod = z.infer<
   ReturnType<typeof createAirQualityReportPeriodSchema>
 >;
+export type GpsMultiunitPeriod = z.infer<
+  ReturnType<typeof createGpsMultiunitPeriodSchema>
+>;
+export type GpsMultiunitSampleCount = z.infer<
+  ReturnType<typeof createGpsMultiunitSampleCountSchema>
+>;
+export type Latitude = z.infer<ReturnType<typeof createLatitudeSchema>>;
+export type Longitude = z.infer<ReturnType<typeof createLongitudeSchema>>;
+export type RadiusMeters = z.infer<ReturnType<typeof createRadiusMetersSchema>>;
 export type SoraCamDeviceId = z.infer<
   ReturnType<typeof createSoraCamDeviceIdSchema>
 >;

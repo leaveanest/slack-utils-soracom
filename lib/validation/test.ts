@@ -7,16 +7,27 @@ import {
   SUPPORTED_LOCALES,
 } from "../i18n/mod.ts";
 import {
+  airQualityReportPeriodSchema,
   channelIdSchema,
   coverageTypeSchema,
   createChannelIdSchema,
+  createGpsMultiunitPeriodSchema,
+  createGpsMultiunitSampleCountSchema,
   createImsiSchema,
+  createLatitudeSchema,
+  createLongitudeSchema,
   createNonEmptyStringSchema,
+  createRadiusMetersSchema,
   createSimIdSchema,
   createSoraCamDeviceIdSchema,
   createUserIdSchema,
+  gpsMultiunitPeriodSchema,
+  gpsMultiunitSampleCountSchema,
   imsiSchema,
+  latitudeSchema,
+  longitudeSchema,
   nonEmptyStringSchema,
+  radiusMetersSchema,
   simIdSchema,
   soraCamDeviceIdSchema,
   statsPeriodSchema,
@@ -345,6 +356,46 @@ Deno.test("statsPeriodSchema: 不正な値を拒否", () => {
   assertEquals(result.success, false);
 });
 
+Deno.test("airQualityReportPeriodSchema: '1h'を検証", () => {
+  const result = airQualityReportPeriodSchema.safeParse("1h");
+  assertEquals(result.success, true);
+});
+
+Deno.test("gpsMultiunitPeriodSchema: '1h'と'1d'を検証", () => {
+  assertEquals(gpsMultiunitPeriodSchema.safeParse("1h").success, true);
+  assertEquals(gpsMultiunitPeriodSchema.safeParse("1d").success, true);
+  assertEquals(gpsMultiunitPeriodSchema.safeParse("1m").success, false);
+});
+
+Deno.test("gpsMultiunitSampleCountSchema: 1〜24の整数を検証", () => {
+  assertEquals(gpsMultiunitSampleCountSchema.safeParse(1).success, true);
+  assertEquals(gpsMultiunitSampleCountSchema.safeParse(24).success, true);
+  assertEquals(gpsMultiunitSampleCountSchema.safeParse(0).success, false);
+  assertEquals(gpsMultiunitSampleCountSchema.safeParse(25).success, false);
+  assertEquals(gpsMultiunitSampleCountSchema.safeParse(1.5).success, false);
+});
+
+Deno.test("latitudeSchema: 正常範囲の緯度を検証", () => {
+  assertEquals(latitudeSchema.safeParse(35.681236).success, true);
+  assertEquals(latitudeSchema.safeParse(-90).success, true);
+  assertEquals(latitudeSchema.safeParse(90).success, true);
+  assertEquals(latitudeSchema.safeParse(90.1).success, false);
+});
+
+Deno.test("longitudeSchema: 正常範囲の経度を検証", () => {
+  assertEquals(longitudeSchema.safeParse(139.767125).success, true);
+  assertEquals(longitudeSchema.safeParse(-180).success, true);
+  assertEquals(longitudeSchema.safeParse(180).success, true);
+  assertEquals(longitudeSchema.safeParse(-180.1).success, false);
+});
+
+Deno.test("radiusMetersSchema: 正の有限数を検証", () => {
+  assertEquals(radiusMetersSchema.safeParse(1).success, true);
+  assertEquals(radiusMetersSchema.safeParse(150.5).success, true);
+  assertEquals(radiusMetersSchema.safeParse(0).success, false);
+  assertEquals(radiusMetersSchema.safeParse(-1).success, false);
+});
+
 Deno.test({
   name: "simIdSchema: エラーメッセージが英語で表示される",
   sanitizeResources: false,
@@ -378,6 +429,106 @@ Deno.test({
     if (!result.success) {
       assertEquals(
         result.error.errors[0].message.includes("IMSI"),
+        true,
+      );
+    }
+    setLocale(originalLocale);
+  },
+});
+
+Deno.test({
+  name: "gpsMultiunitPeriodSchema: エラーメッセージが英語で表示される",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: () => {
+    setLocale("en");
+    const schema = createGpsMultiunitPeriodSchema();
+    const result = schema.safeParse("1m");
+
+    assertEquals(result.success, false);
+    if (!result.success) {
+      assertEquals(
+        result.error.errors[0].message.includes("GPS multiunit period"),
+        true,
+      );
+    }
+    setLocale(originalLocale);
+  },
+});
+
+Deno.test({
+  name: "gpsMultiunitSampleCountSchema: エラーメッセージが日本語で表示される",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: () => {
+    setLocale("ja");
+    const schema = createGpsMultiunitSampleCountSchema();
+    const result = schema.safeParse(0);
+
+    assertEquals(result.success, false);
+    if (!result.success) {
+      assertEquals(
+        result.error.errors[0].message.includes("サンプル数"),
+        true,
+      );
+    }
+    setLocale(originalLocale);
+  },
+});
+
+Deno.test({
+  name: "latitudeSchema: エラーメッセージが英語で表示される",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: () => {
+    setLocale("en");
+    const schema = createLatitudeSchema();
+    const result = schema.safeParse(100);
+
+    assertEquals(result.success, false);
+    if (!result.success) {
+      assertEquals(
+        result.error.errors[0].message.includes("Latitude"),
+        true,
+      );
+    }
+    setLocale(originalLocale);
+  },
+});
+
+Deno.test({
+  name: "longitudeSchema: エラーメッセージが日本語で表示される",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: () => {
+    setLocale("ja");
+    const schema = createLongitudeSchema();
+    const result = schema.safeParse(200);
+
+    assertEquals(result.success, false);
+    if (!result.success) {
+      assertEquals(
+        result.error.errors[0].message.includes("経度"),
+        true,
+      );
+    }
+    setLocale(originalLocale);
+  },
+});
+
+Deno.test({
+  name: "radiusMetersSchema: エラーメッセージが英語で表示される",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: () => {
+    setLocale("en");
+    const schema = createRadiusMetersSchema();
+    const result = schema.safeParse(0);
+
+    assertEquals(result.success, false);
+    if (!result.success) {
+      assertEquals(
+        result.error.errors[0].message.includes("Radius"),
         true,
       );
     }

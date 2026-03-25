@@ -35,6 +35,23 @@ export type {
   AirQualitySummaryDelta,
 } from "./air_quality.ts";
 export {
+  bucketGpsMultiunitSamples,
+  buildGpsMultiunitBucketRanges,
+  buildGpsMultiunitGoogleMapsUrl,
+  calculateGpsMultiunitDistanceMeters,
+  extractGpsMultiunitSample,
+  extractGpsMultiunitSamples,
+  findLatestGpsMultiunitSample,
+  hasGpsMultiunitLocation,
+  isGpsMultiunitDeviceIssue,
+  isGpsMultiunitWithinGeofence,
+} from "./gps_multiunit.ts";
+export type {
+  GpsMultiunitBucketSummary,
+  GpsMultiunitLocation,
+  GpsMultiunitSample,
+} from "./gps_multiunit.ts";
+export {
   ALERT_CHANNEL_ID,
   getChannelId,
   REPORT_CHANNEL_ID,

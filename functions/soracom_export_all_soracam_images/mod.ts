@@ -42,6 +42,7 @@ export const ALL_SORACAM_EXPORT_TASK_CLAIM_SETTLE_MS = 750;
 export const ALL_SORACAM_EXPORT_CREATION_WAIT_RETRIES = 20;
 export const ALL_SORACAM_EXPORT_CREATION_WAIT_INTERVAL_MS = 250;
 export const ALL_SORACAM_EXPORT_TASK_RETRY_DELAY_MS = 3_000;
+export const ALL_SORACAM_EXPORT_STALE_UNSTARTED_TASK_MS = 60_000;
 
 const ALL_SORACAM_EXPORT_WORKFLOW_PATH =
   "#/workflows/soracom_export_all_soracam_images_workflow";
@@ -58,7 +59,8 @@ export type SoraCamBatchImageExportResult = SoraCamImageExportReportResult;
 export const SoracomExportAllSoraCamImagesFunctionDefinition = DefineFunction({
   callback_id: "soracom_export_all_soracam_images",
   title: "ソラカメ全台画像スナップショット",
-  description: "すべての ソラカメ デバイスから画像スナップショットを取得して共有します",
+  description:
+    "すべての ソラカメ デバイスから画像スナップショットを取得して共有します",
   source_file: "functions/soracom_export_all_soracam_images/mod.ts",
   input_parameters: {
     properties: {
@@ -377,6 +379,19 @@ function withoutClaim(
   };
 }
 
+function isStaleUnstartedAllSoraCamImageExportTask(
+  task: SoracomAllSoraCamImageExportTask,
+  now: number,
+): boolean {
+  if (task.status !== "processing" || task.exportId.length > 0) {
+    return false;
+  }
+
+  const updatedAt = Date.parse(task.updatedAt);
+  return Number.isFinite(updatedAt) &&
+    now - updatedAt >= ALL_SORACAM_EXPORT_STALE_UNSTARTED_TASK_MS;
+}
+
 function markTaskUploaded(
   task: SoracomAllSoraCamImageExportTask,
   exportId: string,
@@ -682,6 +697,25 @@ async function fillAllSoraCamImageExportFanoutWindow(params: {
   delayFn: DelayFn;
 }): Promise<void> {
   let tasks = await listAllSoraCamImageExportTasks(
+    params.client,
+    params.job.jobKey,
+  );
+
+  for (const task of tasks) {
+    if (!isStaleUnstartedAllSoraCamImageExportTask(task, params.now)) {
+      continue;
+    }
+
+    await upsertAllSoraCamImageExportTask(
+      params.client,
+      {
+        ...withoutClaim(task, params.now),
+        status: "queued",
+      },
+    );
+  }
+
+  tasks = await listAllSoraCamImageExportTasks(
     params.client,
     params.job.jobKey,
   );

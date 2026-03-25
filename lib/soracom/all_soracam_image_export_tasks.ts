@@ -19,9 +19,17 @@ interface AllSoraCamImageExportTaskDatastoreClient {
       }) => Promise<{ ok: boolean; error?: string }>;
       query: (params: {
         datastore: string;
+        cursor?: string;
+        expression?: string;
+        expression_attributes?: Record<string, string>;
+        expression_values?: Record<string, unknown>;
+        limit?: number;
       }) => Promise<{
         ok: boolean;
         items?: Array<Record<string, unknown>>;
+        response_metadata?: {
+          next_cursor?: string;
+        };
         error?: string;
       }>;
       delete: (params: {
@@ -140,19 +148,39 @@ export async function listAllSoraCamImageExportTasks(
   client: AllSoraCamImageExportTaskDatastoreClient,
   jobKey: string,
 ): Promise<SoracomAllSoraCamImageExportTask[]> {
-  const result = await client.apps.datastore.query({
-    datastore: SoracomAllSoraCamImageExportTasksDatastore.definition.name,
-  });
+  const tasks: SoracomAllSoraCamImageExportTask[] = [];
+  let cursor: string | undefined;
 
-  if (!result.ok || !result.items) {
-    return [];
-  }
+  do {
+    const result = await client.apps.datastore.query({
+      datastore: SoracomAllSoraCamImageExportTasksDatastore.definition.name,
+      cursor,
+      expression: "#job_key = :job_key",
+      expression_attributes: {
+        "#job_key": "job_key",
+      },
+      expression_values: {
+        ":job_key": jobKey,
+      },
+      limit: 100,
+    });
 
-  return result.items
-    .map((item) => normalizeAllSoraCamImageExportTask(item))
-    .filter((item): item is SoracomAllSoraCamImageExportTask =>
-      item !== null && item.jobKey === jobKey
-    )
+    if (!result.ok || !result.items) {
+      return [];
+    }
+
+    tasks.push(
+      ...result.items
+        .map((item) => normalizeAllSoraCamImageExportTask(item))
+        .filter((item): item is SoracomAllSoraCamImageExportTask =>
+          item !== null && item.jobKey === jobKey
+        ),
+    );
+
+    cursor = result.response_metadata?.next_cursor || undefined;
+  } while (cursor);
+
+  return tasks
     .sort((left, right) =>
       left.sortIndex - right.sortIndex ||
       left.deviceId.localeCompare(right.deviceId)

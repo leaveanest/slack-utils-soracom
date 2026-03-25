@@ -149,16 +149,18 @@ slack run workflows/soracom_sim_anomaly_alert_workflow
 
 Functions は custom step として再利用する中心的な提供物です。
 
-| Function                                                                                             | 役割                                     |
-| ---------------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| [`functions/soracom_get_harvest_data/mod.ts`](functions/soracom_get_harvest_data/mod.ts)             | Harvest Data 取得と表示                  |
-| [`functions/soracom_list_soracam_devices/mod.ts`](functions/soracom_list_soracam_devices/mod.ts)     | ソラカメ デバイス一覧取得                |
-| [`functions/soracom_export_soracam_image/mod.ts`](functions/soracom_export_soracam_image/mod.ts)     | ソラカメ 画像スナップショット            |
-| [`functions/soracom_sim_anomaly_alert/mod.ts`](functions/soracom_sim_anomaly_alert/mod.ts)           | 異常ステータスの判定と共有内容の生成     |
-| [`functions/soracom_soracam_motion_capture/mod.ts`](functions/soracom_soracam_motion_capture/mod.ts) | 直近イベントの抽出と画像スナップショット |
-| [`functions/soracom_sim_usage_report/mod.ts`](functions/soracom_sim_usage_report/mod.ts)             | SIM 通信量集計とレポート生成             |
-| [`functions/co2_daily_air_quality_report/mod.ts`](functions/co2_daily_air_quality_report/mod.ts)     | 空気品質サマリーとピーク時間帯の生成     |
-| [`functions/co2_air_quality_anomaly_alert/mod.ts`](functions/co2_air_quality_anomaly_alert/mod.ts)   | 空気品質異常の判定と通知内容の生成       |
+| Function                                                                                             | 役割                                      |
+| ---------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| [`functions/soracom_get_harvest_data/mod.ts`](functions/soracom_get_harvest_data/mod.ts)             | Harvest Data 取得と表示                   |
+| [`functions/soracom_list_soracam_devices/mod.ts`](functions/soracom_list_soracam_devices/mod.ts)     | ソラカメ デバイス一覧取得                 |
+| [`functions/soracom_export_soracam_image/mod.ts`](functions/soracom_export_soracam_image/mod.ts)     | ソラカメ 画像スナップショット             |
+| [`functions/soracom_sim_anomaly_alert/mod.ts`](functions/soracom_sim_anomaly_alert/mod.ts)           | 異常ステータスの判定と共有内容の生成      |
+| [`functions/soracom_soracam_motion_capture/mod.ts`](functions/soracom_soracam_motion_capture/mod.ts) | 直近イベントの抽出と画像スナップショット  |
+| [`functions/soracom_sim_usage_report/mod.ts`](functions/soracom_sim_usage_report/mod.ts)             | SIM 通信量集計とレポート生成              |
+| [`functions/co2_daily_air_quality_report/mod.ts`](functions/co2_daily_air_quality_report/mod.ts)     | 空気品質サマリーとピーク時間帯の生成      |
+| [`functions/co2_air_quality_anomaly_alert/mod.ts`](functions/co2_air_quality_anomaly_alert/mod.ts)   | 空気品質異常の判定と通知内容の生成        |
+| [`functions/gps_multiunit_report/mod.ts`](functions/gps_multiunit_report/mod.ts)                     | GPS マルチユニットの温湿度 / 位置レポート |
+| [`functions/gps_multiunit_geofence_report/mod.ts`](functions/gps_multiunit_geofence_report/mod.ts)   | GPS マルチユニットのジオフェンス確認      |
 
 ### Workflows
 
@@ -174,15 +176,17 @@ Builder や利用者独自の Workflow から Function を custom step
 | [`workflows/soracom_sim_anomaly_alert_workflow.ts`](workflows/soracom_sim_anomaly_alert_workflow.ts)           | 異常ステータスの SIM を定時確認して共有            |
 | [`workflows/soracom_soracam_motion_capture_workflow.ts`](workflows/soracom_soracam_motion_capture_workflow.ts) | 直近の動体検知イベントを定時確認し、画像付きで共有 |
 | [`workflows/co2_air_quality_anomaly_alert_workflow.ts`](workflows/co2_air_quality_anomaly_alert_workflow.ts)   | 空気品質のしきい値逸脱を定時確認して共有           |
+| [`workflows/gps_multiunit_geofence_report_workflow.ts`](workflows/gps_multiunit_geofence_report_workflow.ts)   | GPS マルチユニットの範囲逸脱を定時確認して共有     |
 
 #### 定期レポート・可視化
 
-| Workflow                                                                                                   | 用途                        |
-| ---------------------------------------------------------------------------------------------------------- | --------------------------- |
-| [`workflows/soracom_sim_usage_report_workflow.ts`](workflows/soracom_sim_usage_report_workflow.ts)         | SIM の通信量サマリーを生成  |
-| [`workflows/soracom_get_harvest_data_workflow.ts`](workflows/soracom_get_harvest_data_workflow.ts)         | Harvest Data を確認         |
-| [`workflows/soracom_list_soracam_devices_workflow.ts`](workflows/soracom_list_soracam_devices_workflow.ts) | ソラカメ デバイス一覧を確認 |
-| [`workflows/co2_daily_air_quality_report_workflow.ts`](workflows/co2_daily_air_quality_report_workflow.ts) | 空気品質レポートを生成      |
+| Workflow                                                                                                   | 用途                                            |
+| ---------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| [`workflows/soracom_sim_usage_report_workflow.ts`](workflows/soracom_sim_usage_report_workflow.ts)         | SIM の通信量サマリーを生成                      |
+| [`workflows/soracom_get_harvest_data_workflow.ts`](workflows/soracom_get_harvest_data_workflow.ts)         | Harvest Data を確認                             |
+| [`workflows/soracom_list_soracam_devices_workflow.ts`](workflows/soracom_list_soracam_devices_workflow.ts) | ソラカメ デバイス一覧を確認                     |
+| [`workflows/co2_daily_air_quality_report_workflow.ts`](workflows/co2_daily_air_quality_report_workflow.ts) | 空気品質レポートを生成                          |
+| [`workflows/gps_multiunit_report_workflow.ts`](workflows/gps_multiunit_report_workflow.ts)                 | GPS マルチユニットの温湿度 / 位置レポートを生成 |
 
 #### 現場確認・オペレーション
 
@@ -235,6 +239,18 @@ Workflow を優先します。SORACOM 本体が直接提供する Slack
   - CO2 / 温度 / 湿度の推移を指定期間で要約し、CO2 ピーク時間帯も示す
 - `co2_air_quality_anomaly_alert_workflow`
   - CO2 / 温度 / 湿度のしきい値逸脱を指定期間で検知して共有
+
+### GPS マルチユニットを活用するユースケース
+
+一部の Workflow は、 [GPS マルチユニット](https://soracom.jp/store/5235/)
+の利用を想定しています。このデバイスは Harvest Data に `lat`, `lon`, `temp`,
+`humi`, `type` などを記録できます。
+
+- `gps_multiunit_report_workflow`
+  - 指定した SIM グループ配下の active SIM について、直近 `1h` または `1d`
+    の最新位置または時間帯別平均を共有する
+- `gps_multiunit_geofence_report_workflow`
+  - 指定した中心緯度経度と半径に対して、最新位置が範囲内かどうかを確認する
 
 ## テスト
 

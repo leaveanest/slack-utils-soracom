@@ -16,6 +16,7 @@ import type {
 } from "../../lib/soracom/mod.ts";
 import {
   ALL_SORACAM_EXPORT_PARALLELISM,
+  ALL_SORACAM_EXPORT_STALE_UNSTARTED_TASK_MS,
   ALL_SORACAM_EXPORT_TRIGGER_DELAY_MS,
   formatAllSoraCamImageExportMessage,
   formatPendingAllSoraCamImageExportMessage,
@@ -232,7 +233,7 @@ function createSoracomClientMock(params: {
     getSoraCamImageExport(deviceId: string, exportId: string) {
       getExportCalls.push({ deviceId, exportId });
       return runWithImmediateRetry(
-        async () => {
+        () => {
           const behavior = nextResumedBehavior(deviceId);
           if (!behavior) {
             throw new Error(`missing resumed export for ${deviceId}`);
@@ -240,10 +241,10 @@ function createSoracomClientMock(params: {
           if (behavior instanceof Error) {
             throw behavior;
           }
-          return {
+          return Promise.resolve({
             ...behavior,
             exportId: behavior.exportId || exportId,
-          };
+          });
         },
         (error) => error instanceof TypeError,
       );
@@ -600,6 +601,59 @@ Deno.test("子 run がまだ processing の台は自分自身だけ再スケジ�
   assertEquals(cam1?.exportId, "exp-cam-1");
   assertEquals(cam6?.status, "queued");
 });
+
+Deno.test(
+  "親 run は export_id がないまま止まった processing タスクを待機列に戻して再起動する",
+  async () => {
+    await prepareLocale("ja");
+
+    const devices = createDevices(2);
+    const { client, triggerCreates } = createExportAllClient();
+    const { soracomClient } = createSoracomClientMock({
+      devices,
+    });
+
+    await processAllSoraCamImageExport({
+      soracomClient,
+      client: client as never,
+      channelId: "C123",
+      now: 1700000400000,
+    });
+
+    for (const device of devices) {
+      const taskKey = buildAllSoraCamImageExportTaskKey(
+        "C123",
+        device.deviceId,
+      );
+      const task = await getAllSoraCamImageExportTask(client as never, taskKey);
+      if (!task) {
+        throw new Error(`task not found: ${taskKey}`);
+      }
+
+      await upsertAllSoraCamImageExportTask(client as never, {
+        ...task,
+        updatedAt: new Date(
+          1700000400000 - ALL_SORACAM_EXPORT_STALE_UNSTARTED_TASK_MS - 1,
+        ).toISOString(),
+      });
+    }
+
+    const result = await processAllSoraCamImageExport({
+      soracomClient,
+      client: client as never,
+      channelId: "C123",
+      now: 1700000400000,
+    });
+
+    const tasks = await listAllSoraCamImageExportTasks(client as never, "C123");
+
+    assertEquals(triggerCreates.length, 4);
+    assertEquals(result.completedCount, 0);
+    assertEquals(result.processingCount, 2);
+    assertEquals(result.failedCount, 0);
+    assertEquals(tasks.every((task) => task.status === "processing"), true);
+  },
+);
 
 Deno.test("子 run が失敗した台は failed にして次の待機台を補充する", async () => {
   await prepareLocale("ja");
