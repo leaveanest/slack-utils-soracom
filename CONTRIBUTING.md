@@ -1,4 +1,4 @@
-# Contributing to slack-utils-template
+# Contributing to slack-utils-soracom
 
 ## 開発フロー
 
@@ -166,14 +166,14 @@ Deno.test("チャンネルIDが無効な場合はエラーを返す", async () =
 ### ファイル構成
 
 ```
-functions/example_function/
+functions/soracom_get_air_usage/
 ├── mod.ts          # 関数実装（JSDoc付き）
 └── test.ts         # テスト（正常系・異常系）
 ```
 
 ### 参考例
 
-`functions/example_function/`
+`functions/soracom_get_air_usage/`
 に実装例があります。新規関数を作成する際は、このディレクトリを参考にしてください。
 
 ### 詳細ドキュメント
@@ -287,7 +287,7 @@ const result3 = channelIdSchema.safeParse("invalid");
 
 ### 参考実装
 
-`functions/example_function/mod.ts`
+`functions/soracom_get_air_usage/mod.ts`
 でZodを使用したバリデーション例を確認できます。
 
 ## テストと品質チェック

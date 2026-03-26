@@ -5,16 +5,24 @@
  * in English and Japanese.
  */
 
+import { getOptionalEnv } from "../env.ts";
+import enLocale from "../../locales/en.json" with { type: "json" };
+import jaLocale from "../../locales/ja.json" with { type: "json" };
+
 type LocaleData = Record<string, unknown>;
 
-let currentLocale = "en";
-const localeCache: Map<string, LocaleData> = new Map();
-
-/**
- * Supported languages
- */
 export const SUPPORTED_LOCALES = ["en", "ja"] as const;
 export type SupportedLocale = typeof SUPPORTED_LOCALES[number];
+const DEFAULT_LOCALE: SupportedLocale = "ja";
+const JAPAN_TIME_ZONE = "Asia/Tokyo";
+
+let currentLocale: SupportedLocale = DEFAULT_LOCALE;
+const localeCache: Map<string, LocaleData> = new Map();
+
+const BUNDLED_LOCALES: Record<SupportedLocale, LocaleData> = {
+  en: enLocale as LocaleData,
+  ja: jaLocale as LocaleData,
+};
 
 /**
  * Load locale data from JSON file
@@ -28,32 +36,18 @@ export async function loadLocale(lang: string): Promise<LocaleData> {
     return localeCache.get(lang)!;
   }
 
-  try {
-    // Try to load from file system
-    const localePath = new URL(
-      `../../locales/${lang}.json`,
-      import.meta.url,
-    );
-    const response = await fetch(localePath);
-
-    if (!response.ok) {
-      throw new Error(`Failed to load locale: ${lang}`);
-    }
-
-    const data = await response.json();
-    localeCache.set(lang, data);
-    return data;
-  } catch (error) {
-    // Fallback to English if locale not found
-    if (lang !== "en") {
-      console.warn(
-        `Failed to load locale ${lang}, falling back to English:`,
-        error,
-      );
-      return await loadLocale("en");
-    }
-    throw error;
+  const bundledLocale = BUNDLED_LOCALES[lang as SupportedLocale];
+  if (bundledLocale) {
+    localeCache.set(lang, bundledLocale);
+    return bundledLocale;
   }
+
+  if (lang !== "en") {
+    console.warn(`Failed to load locale ${lang}, falling back to English`);
+    return await loadLocale("en");
+  }
+
+  throw new Error(`Failed to load locale: ${lang}`);
 }
 
 /**
@@ -74,24 +68,98 @@ export function getLocale(): string {
   return currentLocale;
 }
 
+function toSupportedLocale(locale?: string): SupportedLocale {
+  return normalizeLocale(locale) ?? currentLocale;
+}
+
+function formatDateTimeParts(
+  date: Date,
+  locale: string,
+  timeZone: string,
+): string {
+  const formatter = new Intl.DateTimeFormat(locale, {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  });
+  const parts = Object.fromEntries(
+    formatter.formatToParts(date)
+      .filter((part) => part.type !== "literal")
+      .map((part) => [part.type, part.value]),
+  );
+
+  return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second}`;
+}
+
+/**
+ * 現在のロケールに応じて日時を整形します。
+ *
+ * 日本語ロケールでは日本時間で表示し、それ以外は ISO 8601 形式を返します。
+ *
+ * @param value - 整形対象の日時
+ * @param locale - 明示的に指定するロケール
+ * @returns 整形済み日時文字列
+ */
+export function formatLocalizedDateTime(
+  value: Date | number | string,
+  locale?: SupportedLocale,
+): string {
+  const date = value instanceof Date ? value : new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    throw new Error(`Invalid date value: ${value}`);
+  }
+
+  const resolvedLocale = toSupportedLocale(locale);
+  if (resolvedLocale === "ja") {
+    return `${formatDateTimeParts(date, "ja-JP", JAPAN_TIME_ZONE)} JST`;
+  }
+
+  return date.toISOString();
+}
+
 /**
  * Detect locale from environment variables
  *
- * Checks LOCALE, LANG, and defaults to "en"
+ * Checks LOCALE first, then LANG, and defaults to Japanese.
  *
  * @returns Detected locale code
  */
 export function detectLocale(): SupportedLocale {
-  // Check LOCALE environment variable first
-  const locale = Deno.env.get("LOCALE") || Deno.env.get("LANG") || "en";
+  const explicitLocale = normalizeLocale(getOptionalEnv("LOCALE"));
+  if (explicitLocale) {
+    return explicitLocale;
+  }
 
-  // Extract language code (e.g., "ja_JP.UTF-8" -> "ja")
-  const langCode = locale.split(/[_.]/)[0].toLowerCase();
+  // Respect LANG for Japanese environments, otherwise keep the repo default.
+  const langLocale = normalizeLocale(getOptionalEnv("LANG"));
+  if (langLocale === "ja") {
+    return "ja";
+  }
 
-  // Return if supported, otherwise default to English
+  return DEFAULT_LOCALE;
+}
+
+/**
+ * Normalize a locale string to a supported language code.
+ *
+ * @param locale - Raw locale string (e.g., "ja_JP.UTF-8")
+ * @returns Supported locale, or undefined if unsupported
+ */
+function normalizeLocale(locale?: string): SupportedLocale | undefined {
+  if (!locale) {
+    return undefined;
+  }
+
+  const langCode = locale.split(/[-_.]/)[0].toLowerCase();
   return SUPPORTED_LOCALES.includes(langCode as SupportedLocale)
     ? langCode as SupportedLocale
-    : "en";
+    : undefined;
 }
 
 /**

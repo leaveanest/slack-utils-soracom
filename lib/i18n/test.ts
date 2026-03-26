@@ -1,6 +1,7 @@
 import { assertEquals, assertExists } from "std/testing/asserts.ts";
 import {
   detectLocale,
+  formatLocalizedDateTime,
   getLocale,
   initI18n,
   loadLocale,
@@ -11,7 +12,7 @@ import {
 import { checkI18n } from "./check.ts";
 
 Deno.test({
-  name: "detectLocale: デフォルトは英語",
+  name: "detectLocale: デフォルトは日本語",
   sanitizeResources: false,
   sanitizeOps: false,
   fn: () => {
@@ -23,7 +24,7 @@ Deno.test({
       Deno.env.delete("LANG");
 
       const locale = detectLocale();
-      assertEquals(locale, "en");
+      assertEquals(locale, "ja");
     } finally {
       if (originalLocale) Deno.env.set("LOCALE", originalLocale);
       if (originalLang) Deno.env.set("LANG", originalLang);
@@ -52,6 +53,36 @@ Deno.test({
   },
 });
 
+Deno.test({
+  name: "detectLocale: LOCALE環境変数で英語に切り替えられる",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: () => {
+    const originalLocale = Deno.env.get("LOCALE");
+    const originalLang = Deno.env.get("LANG");
+
+    try {
+      Deno.env.set("LOCALE", "en");
+      Deno.env.set("LANG", "ja_JP.UTF-8");
+
+      const locale = detectLocale();
+      assertEquals(locale, "en");
+    } finally {
+      if (originalLocale) {
+        Deno.env.set("LOCALE", originalLocale);
+      } else {
+        Deno.env.delete("LOCALE");
+      }
+
+      if (originalLang) {
+        Deno.env.set("LANG", originalLang);
+      } else {
+        Deno.env.delete("LANG");
+      }
+    }
+  },
+});
+
 Deno.test("detectLocale: LANG環境変数から検出（ja_JP.UTF-8形式）", () => {
   const originalLocale = Deno.env.get("LOCALE");
   const originalLang = Deno.env.get("LANG");
@@ -59,6 +90,26 @@ Deno.test("detectLocale: LANG環境変数から検出（ja_JP.UTF-8形式）", (
   try {
     Deno.env.delete("LOCALE");
     Deno.env.set("LANG", "ja_JP.UTF-8");
+
+    const locale = detectLocale();
+    assertEquals(locale, "ja");
+  } finally {
+    if (originalLocale) Deno.env.set("LOCALE", originalLocale);
+    if (originalLang) {
+      Deno.env.set("LANG", originalLang);
+    } else {
+      Deno.env.delete("LANG");
+    }
+  }
+});
+
+Deno.test("detectLocale: LANGが英語でも既定値は日本語", () => {
+  const originalLocale = Deno.env.get("LOCALE");
+  const originalLang = Deno.env.get("LANG");
+
+  try {
+    Deno.env.delete("LOCALE");
+    Deno.env.set("LANG", "en_US.UTF-8");
 
     const locale = detectLocale();
     assertEquals(locale, "ja");
@@ -151,6 +202,24 @@ Deno.test("t: プレースホルダーが不足している場合は元の形式
 
   const message = t("errors.channel_not_found"); // errorパラメータなし
   assertEquals(message, "Failed to load channel info: {error}");
+});
+
+Deno.test("formatLocalizedDateTime: 日本語ロケールでは日本時間で表示する", async () => {
+  await initI18n();
+  setLocale("ja");
+
+  const formatted = formatLocalizedDateTime("2026-03-18T07:05:41.000Z");
+
+  assertEquals(formatted, "2026-03-18 16:05:41 JST");
+});
+
+Deno.test("formatLocalizedDateTime: 英語ロケールでは ISO 形式で表示する", async () => {
+  await initI18n();
+  setLocale("en");
+
+  const formatted = formatLocalizedDateTime("2026-03-18T07:05:41.000Z");
+
+  assertEquals(formatted, "2026-03-18T07:05:41.000Z");
 });
 
 Deno.test("checkI18n: 全ての言語ファイルのキーが一致する", async () => {

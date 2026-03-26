@@ -61,23 +61,23 @@ const summary = t("messages.channel_summary", { name: "general", count: "42" });
 export LOCALE=en
 deno run your_script.ts
 
-# 日本語で実行
+# 日本語で実行（デフォルト）
 export LOCALE=ja
 deno run your_script.ts
 ```
 
-環境変数が設定されていない場合、デフォルトは英語 (en) です。
+環境変数が設定されていない場合、デフォルトは日本語 (ja) です。
 
 ### 言語の自動検出
 
-`LOCALE` または `LANG` 環境変数から自動的に言語を検出します：
+`LOCALE` を優先し、未設定時は `LANG` から日本語環境を自動検出します：
 
 ```bash
 # ja_JP.UTF-8 から "ja" を検出
 export LANG=ja_JP.UTF-8
 
-# en_US.UTF-8 から "en" を検出
-export LANG=en_US.UTF-8
+# 英語で実行したい場合は LOCALE を明示
+export LOCALE=en
 ```
 
 ## 新しいメッセージの追加

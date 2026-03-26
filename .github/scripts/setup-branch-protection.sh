@@ -20,12 +20,28 @@ fi
 
 echo "Setting branch protection rules for ${REPO_SLUG}@main"
 
+CODEOWNERS_FILE=""
+for candidate in ".github/CODEOWNERS" "CODEOWNERS" "docs/CODEOWNERS"; do
+  if [ -f "$candidate" ]; then
+    CODEOWNERS_FILE="$candidate"
+    break
+  fi
+done
+
+if [ -n "$CODEOWNERS_FILE" ]; then
+  REQUIRE_CODE_OWNER_REVIEWS=true
+  echo "Using CODEOWNERS from ${CODEOWNERS_FILE}"
+else
+  REQUIRE_CODE_OWNER_REVIEWS=false
+  echo "CODEOWNERS file not found. Disabling code owner review requirement."
+fi
+
 gh api \
   --method PUT \
   -H "Accept: application/vnd.github+json" \
   -H "X-GitHub-Api-Version: 2022-11-28" \
   "repos/${REPO_SLUG}/branches/main/protection" \
-  --input - <<'JSON'
+  --input - <<JSON
 {
   "required_status_checks": {
     "strict": true,
@@ -38,7 +54,7 @@ gh api \
   },
   "required_pull_request_reviews": {
     "required_approving_review_count": 1,
-    "require_code_owner_reviews": true
+    "require_code_owner_reviews": ${REQUIRE_CODE_OWNER_REVIEWS}
   },
   "enforce_admins": true,
   "restrictions": null,

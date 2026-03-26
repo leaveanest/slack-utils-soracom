@@ -14,10 +14,10 @@
     "fmt": "deno fmt",
     "lint": "deno lint",
     "test": "deno test --allow-env --allow-read --allow-net",
-    "check": "deno check manifest.ts workflows/example_workflow.ts",
-    "dev": "slack run workflows/example_workflow",
+    "check": "deno check manifest.ts",
+    "dev": "slack run workflows/soracom_sim_anomaly_alert_workflow",
     "i18n:check": "deno run --allow-read lib/i18n/check.ts",
     "i18n:test": "deno test --allow-env --allow-read --allow-net lib/i18n/test.ts",
-    "cursor-ci": "deno fmt --check && deno lint && deno check manifest.ts workflows/example_workflow.ts && deno test --allow-env --allow-read --allow-net"
+    "cursor-ci": "deno fmt --check && deno lint && deno check manifest.ts && deno test --allow-env --allow-read --allow-net"
   }
 }

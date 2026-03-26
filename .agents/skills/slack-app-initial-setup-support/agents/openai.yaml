@@ -1,0 +1,4 @@
+interface:
+  display_name: "Slack App Initial Setup Support"
+  short_description: "初回 Slack 導入の伴走ガイド"
+  default_prompt: "Use $slack-app-initial-setup-support to guide first-time installation of this app into a Slack workspace based on docs/setup-guide.md, separating local checks from human confirmation steps."

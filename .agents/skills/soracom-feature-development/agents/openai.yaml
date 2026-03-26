@@ -1,0 +1,4 @@
+interface:
+  display_name: "SORACOM Feature Development"
+  short_description: "Function と Workflow 実装ガイド"
+  default_prompt: "Use $soracom-feature-development to implement or update Slack Functions, Workflows, or Datastore logic in this repository."

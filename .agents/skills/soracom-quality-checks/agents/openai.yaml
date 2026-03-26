@@ -1,0 +1,4 @@
+interface:
+  display_name: "SORACOM Quality Checks"
+  short_description: "テスト・i18n・例外処理確認ガイド"
+  default_prompt: "Use $soracom-quality-checks to validate tests, i18n, error handling, and manifest wiring in this repository."
