@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.0.0 (2026-03-26)
+
+
+### Features
+
+* add CO2 air quality anomaly alert functionality ([e352213](https://github.com/leaveanest/slack-utils-soracom/commit/e3522132ef491f76c7a492e59f0dfc7090eb17c5))
+* add composite workflows for SIM monitoring and SoraCam automation ([41c18cd](https://github.com/leaveanest/slack-utils-soracom/commit/41c18cd4dadb01074c9334fef5dd71e4df21f6a1))
+* add environment variable config for Scheduled Trigger channel IDs ([0d635bd](https://github.com/leaveanest/slack-utils-soracom/commit/0d635bdccfc2a221175618c8e43f6ff8cc132db4))
+* add GPS multiunit reporting and geofence functionality ([63717f3](https://github.com/leaveanest/slack-utils-soracom/commit/63717f3803fc6d34fcb40b95c0ca69629a1596b3))
+* add modal form for Soracom config management ([35788c7](https://github.com/leaveanest/slack-utils-soracom/commit/35788c7da0d32f90cb5b0afd90c7472093b4fb80))
+* add new functions and workflows for CO2 monitoring and reporting ([40a6432](https://github.com/leaveanest/slack-utils-soracom/commit/40a6432e784da1fbf35737c4f22284395947ae34))
+* add Slack app initial setup support skill ([6a8c396](https://github.com/leaveanest/slack-utils-soracom/commit/6a8c396742802aa19e2e00842c82a9fe4418c10c))
+* add Slack Datastore for Soracom configuration management ([062985e](https://github.com/leaveanest/slack-utils-soracom/commit/062985edcf0378b9f0d1853ca4f307780eb0f2c8))
+* add Soracom API integration for SIM management and air usage stats ([a2dd1d3](https://github.com/leaveanest/slack-utils-soracom/commit/a2dd1d3583af417c8f56c94784d26b8e2aafe1b1))
+* add Soracom Harvest Data and SoraCam (ソラカメ) API integration ([19669ae](https://github.com/leaveanest/slack-utils-soracom/commit/19669ae330f281581782f63ce1da2f3dff58828a))
+* enhance SoraCam functionality and update configurations ([9e6fa6a](https://github.com/leaveanest/slack-utils-soracom/commit/9e6fa6ab129b116299ed5ceac1d6225d0e0f2dbf))
+* enhance SoraCam image export functionality and improve message formatting ([0df0751](https://github.com/leaveanest/slack-utils-soracom/commit/0df0751da065dc5cb649018e400f4faf81d77d5e))
+* update environment configuration and add air quality alert function ([72139de](https://github.com/leaveanest/slack-utils-soracom/commit/72139de13e343a07a5933e0e3f8773238e2e4bd9))
+
+
+### Bug Fixes
+
+* normalize UNIX timestamp handling and enhance SIM usage reporting ([5d2289b](https://github.com/leaveanest/slack-utils-soracom/commit/5d2289be21cdbab348a9a7c242eab4029f556462))
+
 ## [1.9.1](https://github.com/leaveanest/slack-utils/compare/v1.9.0...v1.9.1) (2026-01-19)
 
 
