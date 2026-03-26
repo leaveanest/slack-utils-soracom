@@ -141,7 +141,7 @@ deno task test
 slack deploy
 ```
 
-deployed custom function が使う SORACOM 認証情報は `.env`
+deployed custom function が使う「SORACOM」認証情報は `.env`
 ではなく、`slack env add` で登録します。`SORACOM_COVERAGE_TYPE`
 は日本カバレッジなら `jp`、グローバルカバレッジなら `g` を使ってください。
 
@@ -219,7 +219,7 @@ slack deploy
 設定する主な入力:
 
 - `sim_group_id`
-  - 対象センサー SIM をまとめた SORACOM のグループ ID
+  - 対象センサー SIM をまとめた「SORACOM」のグループ ID
 - `channel_id`
   - レポートの投稿先チャンネル
 - `period`
@@ -256,7 +256,7 @@ slack deploy
 設定する主な入力:
 
 - `sim_group_id`
-  - 対象デバイスの SIM をまとめた SORACOM のグループ ID
+  - 対象デバイスの SIM をまとめた「SORACOM」のグループ ID
 - `channel_id`
   - レポートの投稿先チャンネル
 - `period`
@@ -290,7 +290,7 @@ slack deploy
 設定する主な入力:
 
 - `sim_group_id`
-  - 対象デバイスの SIM をまとめた SORACOM のグループ ID
+  - 対象デバイスの SIM をまとめた「SORACOM」のグループ ID
 - `channel_id`
   - レポートの投稿先チャンネル
 - `period`
@@ -355,7 +355,7 @@ slack deploy
 - step を使いたい人が app collaborator 以外なら `slack function access`
   を実行し、その後に `slack deploy` し直してください
 
-### deployed app で SORACOM 認証エラーになる
+### deployed app で「SORACOM」認証エラーになる
 
 - `.env` ではなく `slack env add` で認証情報を登録しているか確認してください
 - `slack env list` で `SORACOM_AUTH_KEY_ID`, `SORACOM_AUTH_KEY`,
@@ -365,7 +365,7 @@ slack deploy
 
 ### `sim_group_id` がわからない
 
-- SORACOM ユーザーコンソールで対象グループを開き、グループ ID を確認してください
+- 「SORACOM」ユーザーコンソールで対象グループを開き、グループ ID を確認してください
 - 対象の SIM がそのグループに属しているか確認してください
 
 ### チャンネルに投稿できない
@@ -375,11 +375,11 @@ slack deploy
 - private channel 固有の `channel_id`
   バリデーションエラーが出る場合は、現状の実装フォロー候補として別途切り分けてください
 
-### ソラカメ画像が取れない
+### 「ソラカメ」画像が取れない
 
 - デバイスが登録済みか確認してください
 - 直近の録画があるか確認してください
-- `slack env list` で SORACOM 認証情報が deploy 済み app
+- `slack env list` で「SORACOM」認証情報が deploy 済み app
   に設定されているか確認してください
 
 ### 空気品質レポートが空になる

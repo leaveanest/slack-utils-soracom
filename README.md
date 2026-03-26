@@ -10,7 +10,7 @@ IoT デバイス運用を Slack 上で支援する custom step / Function 集で
 
 ## 概要
 
-- SIM 状態監視、通信量レポート、Harvest Data 活用、ソラカメ 連携を Slack
+- SIM 状態監視、通信量レポート、Harvest Data 活用、クラウドカメラ連携を Slack
   に統合します。
 - 単純な API
   実行だけでなく、定時確認、状況共有、現場確認、定期レポートといった運用ユースケースを中心に設計します。
