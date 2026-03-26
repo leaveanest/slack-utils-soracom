@@ -1,6 +1,12 @@
-# slack-utils-soracom
+# slack-utils-iot
 
-SORACOM を利用した現場運用を Slack 上で支援する custom step / Function 集です。
+IoT デバイス運用を Slack 上で支援する custom step / Function 集です。主に「SORACOM」サービスを利用する現場運用を想定しています。
+
+## 商標について
+
+本リポジトリは「SORACOM」関連サービスを利用するための参考実装であり、株式会社ソラコムまたはその関連会社による提携、支援、後援を示すものではありません。
+
+「SORACOM」「ソラコム」「ソラカメ」および関連する商品・サービス名称は、株式会社ソラコムまたはその関連会社の商標または登録商標です。
 
 ## 概要
 
@@ -19,15 +25,15 @@ SORACOM を利用した現場運用を Slack 上で支援する custom step / Fu
 
 - `Function`: custom step として再利用する中心的な部品
 - `Workflow`: Function を組み合わせたサンプルや推奨フロー
-- `lib/`: SORACOM API クライアントや共通ロジック
+- `lib/`: 「SORACOM」API クライアントや共通ロジック
 
 単純な API ラッパーは基盤部品として扱い、Slack から見える機能は
 「確認する」「報告する」「振り返る」といった運用行為に寄せていきます。
-また、リアルタイム性が必要な通知処理は SORACOM
+また、リアルタイム性が必要な通知処理は「SORACOM」
 起点の別システムに分離し、このリポジトリでは定時実行での確認、要約、現場共有に向いた
-Function / Workflow を優先します。SORACOM 本体が直接提供する Slack
+Function / Workflow を優先します。「SORACOM」サービス側が直接提供する Slack
 通知機能ですでに代替できるものは、原則としてそのまま再実装しません。ここでの比較対象に
-`SORACOM Flux` は含めません。 Trigger
+「SORACOM Flux」は含めません。 Trigger
 はこのリポジトリの主役ではなく、必要に応じて利用者が作成するものとして扱います。
 
 ## 前提条件
@@ -43,12 +49,12 @@ Function / Workflow を優先します。SORACOM 本体が直接提供する Sla
 
 ```bash
 # リポジトリを取得
-git clone https://github.com/leaveanest/slack-utils-soracom.git
-cd slack-utils-soracom
+git clone https://github.com/leaveanest/slack-utils-iot.git
+cd slack-utils-iot
 
 # 環境変数の設定
 cp .env.example .env
-# .env ファイルを編集して、アプリ名と SORACOM 認証情報を設定
+# .env ファイルを編集して、アプリ名と「SORACOM」認証情報を設定
 
 # 初期化
 slack login
@@ -64,16 +70,16 @@ slack login
 
 ```bash
 # Slack App Configuration
-SLACK_APP_NAME="Slack Utils SORACOM"          # アプリ名
-SLACK_APP_DESCRIPTION="SORACOM utilities for Slack"  # アプリの説明
+SLACK_APP_NAME="Slack Utils IoT"          # アプリ名
+SLACK_APP_DESCRIPTION="IoT utilities for Slack"  # アプリの説明
 
-# SORACOM API Authentication (required)
+# "SORACOM" API Authentication (required)
 SORACOM_AUTH_KEY_ID=your-auth-key-id
 SORACOM_AUTH_KEY=your-auth-key
 SORACOM_COVERAGE_TYPE=jp                    # jp または g
 ```
 
-`SORACOM_AUTH_KEY_ID` と `SORACOM_AUTH_KEY` は SORACOM API を使う Function
+`SORACOM_AUTH_KEY_ID` と `SORACOM_AUTH_KEY` は「SORACOM」API を使う Function
 の実行に必須です。通知先チャンネルは各 Workflow / Trigger 側で `channel_id`
 を明示的に指定してください。
 
@@ -132,7 +138,7 @@ deno coverage cov --html
 slack run workflows/soracom_sim_anomaly_alert_workflow
 ```
 
-- `functions/` には、SORACOM API や Slack 投稿を扱う再利用可能な custom step
+- `functions/` には、「SORACOM」API や Slack 投稿を扱う再利用可能な custom step
   を配置します。
 - `workflows/`
   には、運用シナリオに沿って複数の部品を組み合わせたサンプルや推奨フローを定義します。
@@ -151,9 +157,9 @@ Functions は custom step として再利用する中心的な提供物です。
 
 | Function                                                                                             | 役割                                      |
 | ---------------------------------------------------------------------------------------------------- | ----------------------------------------- |
-| [`functions/soracom_get_harvest_data/mod.ts`](functions/soracom_get_harvest_data/mod.ts)             | Harvest Data 取得と表示                   |
-| [`functions/soracom_list_soracam_devices/mod.ts`](functions/soracom_list_soracam_devices/mod.ts)     | ソラカメ デバイス一覧取得                 |
-| [`functions/soracom_export_soracam_image/mod.ts`](functions/soracom_export_soracam_image/mod.ts)     | ソラカメ 画像スナップショット             |
+| [`functions/soracom_get_harvest_data/mod.ts`](functions/soracom_get_harvest_data/mod.ts)             | デバイスデータ取得と表示                  |
+| [`functions/soracom_list_soracam_devices/mod.ts`](functions/soracom_list_soracam_devices/mod.ts)     | カメラデバイス一覧取得                    |
+| [`functions/soracom_export_soracam_image/mod.ts`](functions/soracom_export_soracam_image/mod.ts)     | カメラ画像スナップショット                |
 | [`functions/soracom_sim_anomaly_alert/mod.ts`](functions/soracom_sim_anomaly_alert/mod.ts)           | 異常ステータスの判定と共有内容の生成      |
 | [`functions/soracom_soracam_motion_capture/mod.ts`](functions/soracom_soracam_motion_capture/mod.ts) | 直近イベントの抽出と画像スナップショット  |
 | [`functions/soracom_sim_usage_report/mod.ts`](functions/soracom_sim_usage_report/mod.ts)             | SIM 通信量集計とレポート生成              |
@@ -183,8 +189,8 @@ Builder や利用者独自の Workflow から Function を custom step
 | Workflow                                                                                                   | 用途                                            |
 | ---------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
 | [`workflows/soracom_sim_usage_report_workflow.ts`](workflows/soracom_sim_usage_report_workflow.ts)         | SIM の通信量サマリーを生成                      |
-| [`workflows/soracom_get_harvest_data_workflow.ts`](workflows/soracom_get_harvest_data_workflow.ts)         | Harvest Data を確認                             |
-| [`workflows/soracom_list_soracam_devices_workflow.ts`](workflows/soracom_list_soracam_devices_workflow.ts) | ソラカメ デバイス一覧を確認                     |
+| [`workflows/soracom_get_harvest_data_workflow.ts`](workflows/soracom_get_harvest_data_workflow.ts)         | デバイスデータを確認                            |
+| [`workflows/soracom_list_soracam_devices_workflow.ts`](workflows/soracom_list_soracam_devices_workflow.ts) | カメラデバイス一覧を確認                        |
 | [`workflows/co2_daily_air_quality_report_workflow.ts`](workflows/co2_daily_air_quality_report_workflow.ts) | 空気品質レポートを生成                          |
 | [`workflows/gps_multiunit_report_workflow.ts`](workflows/gps_multiunit_report_workflow.ts)                 | GPS マルチユニットの温湿度 / 位置レポートを生成 |
 
@@ -192,7 +198,7 @@ Builder や利用者独自の Workflow から Function を custom step
 
 | Workflow                                                                                                   | 用途                                                |
 | ---------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
-| [`workflows/soracom_export_soracam_image_workflow.ts`](workflows/soracom_export_soracam_image_workflow.ts) | ソラカメ 録画から画像スナップショットを取得して確認 |
+| [`workflows/soracom_export_soracam_image_workflow.ts`](workflows/soracom_export_soracam_image_workflow.ts) | カメラ録画から画像スナップショットを取得して確認   |
 
 ### Triggers
 
@@ -208,15 +214,15 @@ Builder や利用者独自の Workflow から Function を custom step
 
 ## 想定ユースケース
 
-今後は、SORACOM API の単純なラッパーを増やすよりも、Slack
+今後は、「SORACOM」API の単純なラッパーを増やすよりも、Slack
 上での定時確認、要約、現場共有を支援する Function を強化していく方針です。
 
-リアルタイム通知は SORACOM
+リアルタイム通知は「SORACOM」
 起点の別システムに分離し、このリポジトリでは定時実行で価値が出る Function /
-Workflow を優先します。SORACOM 本体が直接提供する Slack
-通知機能と競合する単純通知は避けます。`SORACOM Flux` は比較対象に含めません。
+Workflow を優先します。「SORACOM」サービス側が直接提供する Slack
+通知機能と競合する単純通知は避けます。「SORACOM Flux」は比較対象に含めません。
 
-### ソラカメ を活用するユースケース
+### クラウドカメラを活用するユースケース
 
 - `soracam_latest_event_snapshot_workflow`
   - 定時実行時点で直近イベントの画像を切り出して確認
@@ -686,7 +692,7 @@ slack deploy --env production
 ## プロジェクト構成
 
 ```text
-slack-utils-soracom/
+slack-utils-iot/
 ├── functions/         # Slack Functions（各関数にtest.tsを配置）
 ├── workflows/         # 推奨構成やサンプルの Slack Workflows
 ├── triggers/          # 任意のサンプル Trigger

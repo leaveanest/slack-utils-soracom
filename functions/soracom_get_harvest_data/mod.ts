@@ -9,8 +9,8 @@ import { imsiSchema } from "../../lib/validation/schemas.ts";
  */
 export const SoracomGetHarvestDataFunctionDefinition = DefineFunction({
   callback_id: "soracom_get_harvest_data",
-  title: "SORACOM Harvest Data確認",
-  description: "加入者の Harvest Data を取得して表示します",
+  title: "デバイスデータ確認",
+  description: "加入者のデータを取得して表示します",
   source_file: "functions/soracom_get_harvest_data/mod.ts",
   input_parameters: {
     properties: {
@@ -37,7 +37,7 @@ export const SoracomGetHarvestDataFunctionDefinition = DefineFunction({
       },
       message: {
         type: Schema.types.string,
-        description: "整形済みの Harvest Data メッセージ",
+        description: "整形済みのデータメッセージ",
       },
     },
     required: ["imsi", "entry_count", "message"],

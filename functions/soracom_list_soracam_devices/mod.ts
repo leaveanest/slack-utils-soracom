@@ -4,12 +4,12 @@ import { createSoracomClientFromEnv } from "../../lib/soracom/mod.ts";
 import type { SoraCamDevice } from "../../lib/soracom/mod.ts";
 
 /**
- * ソラカメデバイス一覧取得関数定義
+ * カメラデバイス一覧取得関数定義
  */
 export const SoracomListSoraCamDevicesFunctionDefinition = DefineFunction({
   callback_id: "soracom_list_soracam_devices",
-  title: "ソラカメデバイス一覧",
-  description: "ソラカメ デバイス一覧を取得して表示します",
+  title: "カメラデバイス一覧",
+  description: "カメラデバイス一覧を取得して表示します",
   source_file: "functions/soracom_list_soracam_devices/mod.ts",
   input_parameters: {
     properties: {
@@ -36,9 +36,9 @@ export const SoracomListSoraCamDevicesFunctionDefinition = DefineFunction({
 });
 
 /**
- * ソラカメデバイス一覧をフォーマットされたメッセージに変換します
+ * カメラデバイス一覧をフォーマットされたメッセージに変換します
  *
- * @param devices - ソラカメデバイス一覧
+ * @param devices - カメラデバイス一覧
  * @returns フォーマットされたSlackメッセージ文字列
  */
 export function formatSoraCamDeviceListMessage(

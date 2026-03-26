@@ -9,13 +9,13 @@ import { SoracomSoraCamMotionCaptureFunctionDefinition } from "../functions/sora
  */
 const SoracomSoraCamMotionCaptureWorkflow = DefineWorkflow({
   callback_id: "soracom_soracam_motion_capture_workflow",
-  title: "ソラカメ動体検知画像確認",
+  title: "カメラ動体検知画像確認",
   description: "動体検知イベントを見つけ、録画から画像を切り出して共有します",
   input_parameters: {
     properties: {
       device_id: {
         type: Schema.types.string,
-        description: "ソラカメ デバイス ID",
+        description: "カメラデバイス ID",
       },
       channel_id: {
         type: Schema.slack.types.channel_id,

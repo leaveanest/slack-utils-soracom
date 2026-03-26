@@ -1,4 +1,4 @@
-# Contributing to slack-utils-soracom
+# Contributing to slack-utils-iot
 
 ## 開発フロー
 

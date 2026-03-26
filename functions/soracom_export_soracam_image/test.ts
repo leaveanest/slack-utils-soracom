@@ -25,7 +25,7 @@ Deno.test("単体画像スナップショットの成功メッセージが日本
 
   const message = formatSoraCamImageExportMessage(result);
 
-  assertEquals(message.includes("ソラカメ画像スナップショット (1台)"), true);
+  assertEquals(message.includes("カメラ画像スナップショット (1台)"), true);
   assertEquals(message.includes("成功 1件 / 失敗 0件"), true);
   assertEquals(message.includes("テスト用カメラ"), true);
   assertEquals(message.includes("デバイスID: 7C12345678AB"), true);

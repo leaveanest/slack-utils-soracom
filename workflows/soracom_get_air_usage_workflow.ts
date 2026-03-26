@@ -8,7 +8,7 @@ import { SoracomGetAirUsageFunctionDefinition } from "../functions/soracom_get_a
  */
 const SoracomGetAirUsageWorkflow = DefineWorkflow({
   callback_id: "soracom_get_air_usage_workflow",
-  title: "SORACOM Air通信量統計",
+  title: "SIM通信量統計",
   description: "SIM 回線の通信量統計を取得して表示します",
   input_parameters: {
     properties: {

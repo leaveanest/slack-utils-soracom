@@ -8,8 +8,8 @@ import { SoracomGetHarvestDataFunctionDefinition } from "../functions/soracom_ge
  */
 const SoracomGetHarvestDataWorkflow = DefineWorkflow({
   callback_id: "soracom_get_harvest_data_workflow",
-  title: "SORACOM Harvest Data確認",
-  description: "加入者の Harvest Data を取得して表示します",
+  title: "デバイスデータ確認",
+  description: "加入者のデータを取得して表示します",
   input_parameters: {
     properties: {
       imsi: {

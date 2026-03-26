@@ -16,19 +16,19 @@ import {
 import { soraCamDeviceIdSchema } from "../../lib/validation/schemas.ts";
 
 /**
- * ソラカメ画像スナップショット関数定義
+ * カメラ画像スナップショット関数定義
  */
 export const SoracomExportSoraCamImageFunctionDefinition = DefineFunction({
   callback_id: "soracom_export_soracam_image",
-  title: "ソラカメ画像スナップショット",
+  title: "カメラ画像スナップショット",
   description:
-    "ソラカメ 録画から画像スナップショットを取得して結果を共有します",
+    "カメラ録画から画像スナップショットを取得して結果を共有します",
   source_file: "functions/soracom_export_soracam_image/mod.ts",
   input_parameters: {
     properties: {
       device_id: {
         type: Schema.types.string,
-        description: "ソラカメ デバイス ID",
+        description: "カメラデバイス ID",
       },
       channel_id: {
         type: Schema.slack.types.channel_id,
@@ -89,7 +89,7 @@ function buildSingleDeviceResult(
 }
 
 /**
- * ソラカメ画像スナップショット結果をフォーマットされたメッセージに変換します。
+ * カメラ画像スナップショット結果をフォーマットされたメッセージに変換します。
  *
  * @param result - 単体デバイスのスナップショット結果
  * @returns フォーマットされたSlackメッセージ文字列

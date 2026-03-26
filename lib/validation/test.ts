@@ -570,7 +570,7 @@ Deno.test({
     assertEquals(result.success, false);
     if (!result.success) {
       assertEquals(
-        result.error.errors[0].message.includes("SoraCam"),
+        result.error.errors[0].message.includes("device ID"),
         true,
       );
     }
