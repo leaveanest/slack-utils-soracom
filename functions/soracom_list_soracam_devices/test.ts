@@ -3,7 +3,7 @@ import { formatSoraCamDeviceListMessage } from "./mod.ts";
 import type { SoraCamDevice } from "../../lib/soracom/mod.ts";
 
 Deno.test({
-  name: "カメラデバイス一覧が正常にフォーマットされる",
+  name: "ソラカメデバイス一覧が正常にフォーマットされる",
   sanitizeResources: false,
   sanitizeOps: false,
   fn: async () => {
@@ -36,7 +36,7 @@ Deno.test({
 });
 
 Deno.test({
-  name: "カメラデバイスが0台の場合は適切なメッセージを返す",
+  name: "ソラカメデバイスが0台の場合は適切なメッセージを返す",
   sanitizeResources: false,
   sanitizeOps: false,
   fn: async () => {

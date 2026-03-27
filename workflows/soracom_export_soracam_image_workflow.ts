@@ -2,19 +2,19 @@ import { DefineWorkflow, Schema } from "deno-slack-sdk/mod.ts";
 import { SoracomExportSoraCamImageFunctionDefinition } from "../functions/soracom_export_soracam_image/mod.ts";
 
 /**
- * カメラ画像スナップショットワークフロー
+ * ソラカメ画像スナップショットワークフロー
  *
  * Slackショートカットから起動し、指定デバイスの録画から画像スナップショットを取得してチャンネルに投稿します。
  */
 const SoracomExportSoraCamImageWorkflow = DefineWorkflow({
   callback_id: "soracom_export_soracam_image_workflow",
-  title: "カメラ画像スナップショット",
-  description: "カメラ録画から画像スナップショットを取得して共有します",
+  title: "ソラカメ画像スナップショット",
+  description: "ソラカメ 録画から画像スナップショットを取得して共有します",
   input_parameters: {
     properties: {
       device_id: {
         type: Schema.types.string,
-        description: "カメラデバイス ID",
+        description: "ソラカメ デバイス ID",
       },
       channel_id: {
         type: Schema.slack.types.channel_id,

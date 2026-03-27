@@ -49,18 +49,18 @@ const ALL_SORACAM_EXPORT_WORKFLOW_PATH =
 const ALL_SORACAM_EXPORT_PENDING_MESSAGE_TS = "__pending__";
 
 /**
- * 全カメラ画像スナップショット結果
+ * 全ソラカメ画像スナップショット結果
  */
 export type SoraCamBatchImageExportResult = SoraCamImageExportReportResult;
 
 /**
- * 全カメラ画像スナップショット関数定義
+ * 全ソラカメ画像スナップショット関数定義
  */
 export const SoracomExportAllSoraCamImagesFunctionDefinition = DefineFunction({
   callback_id: "soracom_export_all_soracam_images",
-  title: "全カメラ画像スナップショット",
+  title: "ソラカメ全台画像スナップショット",
   description:
-    "すべてのカメラデバイスから画像スナップショットを取得して共有します",
+    "すべての ソラカメ デバイスから画像スナップショットを取得して共有します",
   source_file: "functions/soracom_export_all_soracam_images/mod.ts",
   input_parameters: {
     properties: {
@@ -214,7 +214,7 @@ export function summarizeSoraCamBatchImageExportResults(
 }
 
 /**
- * 全カメラ画像スナップショット結果をフォーマットされたメッセージに変換します。
+ * 全ソラカメ画像スナップショット結果をフォーマットされたメッセージに変換します。
  *
  * @param results - 全デバイスのエクスポート結果
  * @returns フォーマットされたSlackメッセージ文字列

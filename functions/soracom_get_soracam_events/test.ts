@@ -3,7 +3,7 @@ import { formatSoraCamEventsMessage } from "./mod.ts";
 import type { SoraCamEvent } from "../../lib/soracom/mod.ts";
 
 Deno.test({
-  name: "カメライベントが正常にフォーマットされる",
+  name: "ソラカメイベントが正常にフォーマットされる",
   sanitizeResources: false,
   sanitizeOps: false,
   fn: async () => {
@@ -33,7 +33,7 @@ Deno.test({
 });
 
 Deno.test({
-  name: "カメライベントが空の場合は適切なメッセージを返す",
+  name: "ソラカメイベントが空の場合は適切なメッセージを返す",
   sanitizeResources: false,
   sanitizeOps: false,
   fn: async () => {

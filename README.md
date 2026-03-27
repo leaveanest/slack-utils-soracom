@@ -158,9 +158,9 @@ Functions は custom step として再利用する中心的な提供物です。
 
 | Function                                                                                             | 役割                                      |
 | ---------------------------------------------------------------------------------------------------- | ----------------------------------------- |
-| [`functions/soracom_get_harvest_data/mod.ts`](functions/soracom_get_harvest_data/mod.ts)             | デバイスデータ取得と表示                  |
-| [`functions/soracom_list_soracam_devices/mod.ts`](functions/soracom_list_soracam_devices/mod.ts)     | カメラデバイス一覧取得                    |
-| [`functions/soracom_export_soracam_image/mod.ts`](functions/soracom_export_soracam_image/mod.ts)     | カメラ画像スナップショット                |
+| [`functions/soracom_get_harvest_data/mod.ts`](functions/soracom_get_harvest_data/mod.ts)             | Harvest Data 取得と表示                   |
+| [`functions/soracom_list_soracam_devices/mod.ts`](functions/soracom_list_soracam_devices/mod.ts)     | ソラカメ デバイス一覧取得                 |
+| [`functions/soracom_export_soracam_image/mod.ts`](functions/soracom_export_soracam_image/mod.ts)     | ソラカメ 画像スナップショット             |
 | [`functions/soracom_sim_anomaly_alert/mod.ts`](functions/soracom_sim_anomaly_alert/mod.ts)           | 異常ステータスの判定と共有内容の生成      |
 | [`functions/soracom_soracam_motion_capture/mod.ts`](functions/soracom_soracam_motion_capture/mod.ts) | 直近イベントの抽出と画像スナップショット  |
 | [`functions/soracom_sim_usage_report/mod.ts`](functions/soracom_sim_usage_report/mod.ts)             | SIM 通信量集計とレポート生成              |
@@ -190,16 +190,16 @@ Builder や利用者独自の Workflow から Function を custom step
 | Workflow                                                                                                   | 用途                                            |
 | ---------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
 | [`workflows/soracom_sim_usage_report_workflow.ts`](workflows/soracom_sim_usage_report_workflow.ts)         | SIM の通信量サマリーを生成                      |
-| [`workflows/soracom_get_harvest_data_workflow.ts`](workflows/soracom_get_harvest_data_workflow.ts)         | デバイスデータを確認                            |
-| [`workflows/soracom_list_soracam_devices_workflow.ts`](workflows/soracom_list_soracam_devices_workflow.ts) | カメラデバイス一覧を確認                        |
+| [`workflows/soracom_get_harvest_data_workflow.ts`](workflows/soracom_get_harvest_data_workflow.ts)         | Harvest Data を確認                             |
+| [`workflows/soracom_list_soracam_devices_workflow.ts`](workflows/soracom_list_soracam_devices_workflow.ts) | ソラカメ デバイス一覧を確認                     |
 | [`workflows/co2_daily_air_quality_report_workflow.ts`](workflows/co2_daily_air_quality_report_workflow.ts) | 空気品質レポートを生成                          |
 | [`workflows/gps_multiunit_report_workflow.ts`](workflows/gps_multiunit_report_workflow.ts)                 | GPS マルチユニットの温湿度 / 位置レポートを生成 |
 
 #### 現場確認・オペレーション
 
-| Workflow                                                                                                   | 用途                                             |
-| ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
-| [`workflows/soracom_export_soracam_image_workflow.ts`](workflows/soracom_export_soracam_image_workflow.ts) | カメラ録画から画像スナップショットを取得して確認 |
+| Workflow                                                                                                   | 用途                                                |
+| ---------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| [`workflows/soracom_export_soracam_image_workflow.ts`](workflows/soracom_export_soracam_image_workflow.ts) | ソラカメ 録画から画像スナップショットを取得して確認 |
 
 ### Triggers
 
@@ -223,7 +223,7 @@ Builder や利用者独自の Workflow から Function を custom step
 Workflow を優先します。「SORACOM」サービス側が直接提供する Slack
 通知機能と競合する単純通知は避けます。「SORACOM Flux」は比較対象に含めません。
 
-### クラウドカメラを活用するユースケース
+### ソラカメ を活用するユースケース
 
 - `soracam_latest_event_snapshot_workflow`
   - 定時実行時点で直近イベントの画像を切り出して確認

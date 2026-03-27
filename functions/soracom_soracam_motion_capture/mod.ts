@@ -30,14 +30,14 @@ import { soraCamDeviceIdSchema } from "../../lib/validation/schemas.ts";
  */
 export const SoracomSoraCamMotionCaptureFunctionDefinition = DefineFunction({
   callback_id: "soracom_soracam_motion_capture",
-  title: "カメラ動体検知画像確認",
+  title: "ソラカメ動体検知画像確認",
   description: "動体検知イベントを見つけ、録画から画像を切り出します",
   source_file: "functions/soracom_soracam_motion_capture/mod.ts",
   input_parameters: {
     properties: {
       device_id: {
         type: Schema.types.string,
-        description: "カメラデバイス ID",
+        description: "ソラカメ デバイス ID",
       },
       channel_id: {
         type: Schema.slack.types.channel_id,

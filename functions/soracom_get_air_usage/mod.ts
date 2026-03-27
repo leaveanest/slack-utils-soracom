@@ -12,7 +12,7 @@ import { imsiSchema, statsPeriodSchema } from "../../lib/validation/schemas.ts";
  */
 export const SoracomGetAirUsageFunctionDefinition = DefineFunction({
   callback_id: "soracom_get_air_usage",
-  title: "SIM通信量統計",
+  title: "SORACOM Air通信量統計",
   description: "SIM 回線の通信量統計を取得して表示します",
   source_file: "functions/soracom_get_air_usage/mod.ts",
   input_parameters: {
