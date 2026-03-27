@@ -5,18 +5,18 @@ import type { SoraCamEvent } from "../../lib/soracom/mod.ts";
 import { soraCamDeviceIdSchema } from "../../lib/validation/schemas.ts";
 
 /**
- * カメライベント取得関数定義
+ * ソラカメイベント取得関数定義
  */
 export const SoracomGetSoraCamEventsFunctionDefinition = DefineFunction({
   callback_id: "soracom_get_soracam_events",
-  title: "カメライベント",
-  description: "カメラデバイスのイベントを取得して表示します",
+  title: "ソラカメイベント",
+  description: "ソラカメ デバイスのイベントを取得して表示します",
   source_file: "functions/soracom_get_soracam_events/mod.ts",
   input_parameters: {
     properties: {
       device_id: {
         type: Schema.types.string,
-        description: "カメラデバイス ID",
+        description: "ソラカメ デバイス ID",
       },
       channel_id: {
         type: Schema.slack.types.channel_id,
@@ -45,7 +45,7 @@ export const SoracomGetSoraCamEventsFunctionDefinition = DefineFunction({
 });
 
 /**
- * カメライベントをフォーマットされたメッセージに変換します
+ * ソラカメイベントをフォーマットされたメッセージに変換します
  *
  * @param deviceId - デバイスID
  * @param events - イベント一覧
