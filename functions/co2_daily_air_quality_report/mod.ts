@@ -221,6 +221,7 @@ export function formatCo2DailyAirQualityReportMessage(
           t("soracom.messages.air_quality_metric_humidity"),
           summary.humidity,
         ),
+        formatDiscomfortIndexSummaryBlock(summary.discomfortIndex ?? {}),
       ]).join("\n\n"),
     ].join("\n"),
   ].filter((section): section is string =>
@@ -248,6 +249,7 @@ export function maskImsiForDisplay(imsi: string): string {
 function formatMetricSummaryBlock(
   label: string,
   summary: AirQualityMetricSummary,
+  formatter: (value: number) => string = formatMetricNumber,
 ): string {
   if (
     summary.latest === undefined ||
@@ -265,22 +267,69 @@ function formatMetricSummaryBlock(
     label,
     `  - ${
       t("soracom.messages.air_quality_metric_latest", {
-        value: formatMetricNumber(summary.latest),
+        value: formatter(summary.latest),
       })
     }`,
     `  - ${
       t("soracom.messages.air_quality_metric_average", {
-        value: formatMetricNumber(summary.average),
+        value: formatter(summary.average),
       })
     }`,
     `  - ${
       t("soracom.messages.air_quality_metric_min", {
-        value: formatMetricNumber(summary.min),
+        value: formatter(summary.min),
       })
     }`,
     `  - ${
       t("soracom.messages.air_quality_metric_max", {
-        value: formatMetricNumber(summary.max),
+        value: formatter(summary.max),
+      })
+    }`,
+  ].join("\n");
+}
+
+function formatDiscomfortIndexSummaryBlock(
+  summary: AirQualityMetricSummary,
+): string {
+  const label = t("soracom.messages.air_quality_metric_discomfort_index");
+
+  if (
+    summary.latest === undefined ||
+    summary.average === undefined ||
+    summary.min === undefined ||
+    summary.max === undefined
+  ) {
+    return [
+      label,
+      `  - ${t("soracom.messages.air_quality_metric_unavailable_short")}`,
+    ].join("\n");
+  }
+
+  return [
+    label,
+    `  - ${
+      t("soracom.messages.air_quality_metric_latest", {
+        value: formatDiscomfortIndexNumber(summary.latest),
+      })
+    }`,
+    `  - ${
+      t("soracom.messages.air_quality_discomfort_index_category_line", {
+        category: resolveDiscomfortIndexCategory(summary.latest),
+      })
+    }`,
+    `  - ${
+      t("soracom.messages.air_quality_metric_average", {
+        value: formatDiscomfortIndexNumber(summary.average),
+      })
+    }`,
+    `  - ${
+      t("soracom.messages.air_quality_metric_min", {
+        value: formatDiscomfortIndexNumber(summary.min),
+      })
+    }`,
+    `  - ${
+      t("soracom.messages.air_quality_metric_max", {
+        value: formatDiscomfortIndexNumber(summary.max),
       })
     }`,
   ].join("\n");
@@ -298,6 +347,50 @@ function formatMetricNumber(value: number): string {
   }
 
   return value.toFixed(1);
+}
+
+function formatDiscomfortIndexNumber(value: number): string {
+  return value.toFixed(1);
+}
+
+function resolveDiscomfortIndexCategory(value: number): string {
+  if (value < 55) {
+    return t("soracom.messages.air_quality_discomfort_index_category_cold");
+  }
+
+  if (value < 60) {
+    return t("soracom.messages.air_quality_discomfort_index_category_chilly");
+  }
+
+  if (value < 65) {
+    return t("soracom.messages.air_quality_discomfort_index_category_neutral");
+  }
+
+  if (value < 70) {
+    return t("soracom.messages.air_quality_discomfort_index_category_pleasant");
+  }
+
+  if (value < 75) {
+    return t(
+      "soracom.messages.air_quality_discomfort_index_category_not_hot",
+    );
+  }
+
+  if (value < 80) {
+    return t(
+      "soracom.messages.air_quality_discomfort_index_category_slightly_hot",
+    );
+  }
+
+  if (value < 85) {
+    return t(
+      "soracom.messages.air_quality_discomfort_index_category_hot_and_sweaty",
+    );
+  }
+
+  return t(
+    "soracom.messages.air_quality_discomfort_index_category_unbearably_hot",
+  );
 }
 
 function formatCriteriaViolationLines(

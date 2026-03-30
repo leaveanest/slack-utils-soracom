@@ -35,6 +35,12 @@ const summaryWithData: AirQualitySummary = {
     max: 55,
     average: 49.4,
   },
+  discomfortIndex: {
+    latest: 70.8,
+    min: 68.1,
+    max: 71.9,
+    average: 69.7,
+  },
   criteria: {
     co2Max: 1000,
     temperatureMin: 18,
@@ -69,6 +75,7 @@ const peakBucket: AirQualityBucketSummary = {
     },
     temperature: {},
     humidity: {},
+    discomfortIndex: {},
     criteria: {
       co2Max: 1000,
       temperatureMin: 18,
@@ -155,6 +162,9 @@ Deno.test({
     assertEquals(message.includes("- CO2 (ppm)\n  - 最新: 950"), true);
     assertEquals(message.includes("  - 平均: 910.4"), true);
     assertEquals(message.includes("- 温度 (℃)\n  - 最新: 24.2"), true);
+    assertEquals(message.includes("- 不快指数\n  - 最新: 70.8"), true);
+    assertEquals(message.includes("  - 区分: 暑くない"), true);
+    assertEquals(message.includes("  - 平均: 69.7"), true);
     assertEquals(
       message.includes("  - 最大: 1250\n\n- 温度 (℃)\n  - 最新: 24.2"),
       true,
@@ -166,6 +176,33 @@ Deno.test({
         (message.includes("18") && message.includes("28")),
       true,
     );
+  },
+});
+
+Deno.test({
+  name: "不快指数の境界値に応じた区分を表示できる",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    const message = formatCo2DailyAirQualityReportMessage(
+      "会議室CO2センサー",
+      "***********7890",
+      "1h",
+      {
+        ...summaryWithData,
+        discomfortIndex: {
+          latest: 75.0,
+          min: 68.1,
+          max: 75.0,
+          average: 71.0,
+        },
+      },
+      peakBucket,
+    );
+
+    assertEquals(message.includes("  - 区分: やや暑い"), true);
   },
 });
 
@@ -245,6 +282,7 @@ Deno.test({
         {
           ...summaryWithData,
           humidity: {},
+          discomfortIndex: {},
         },
         peakBucket,
       );
@@ -253,6 +291,7 @@ Deno.test({
         message.includes(t("soracom.messages.air_quality_metric_humidity")),
         true,
       );
+      assertEquals(message.includes("不快指数"), true);
       assertEquals(message.includes("  - データなし"), true);
     } finally {
       setLocale(originalLocale);

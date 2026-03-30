@@ -2,6 +2,7 @@ import { assertEquals } from "std/testing/asserts.ts";
 import type { HarvestDataEntry } from "./types.ts";
 import {
   bucketAirQualityEntries,
+  calculateDiscomfortIndex,
   compareAirQualitySummaries,
   DEFAULT_AIR_QUALITY_CRITERIA,
   extractAirQualitySample,
@@ -103,6 +104,12 @@ Deno.test("Harvest Dataエントリを集計してメトリクス要約を返す
       max: 50,
       average: 47.5,
     },
+    discomfortIndex: {
+      latest: 68.7415,
+      min: 68.7415,
+      max: 68.7415,
+      average: 68.7415,
+    },
     criteria: DEFAULT_AIR_QUALITY_CRITERIA,
     co2Threshold: 1000,
     co2ThresholdExceededCount: 0,
@@ -137,6 +144,23 @@ Deno.test("温度と湿度の範囲外件数をカウントできる", () => {
 
   assertEquals(summary.temperatureOutOfRangeCount, 2);
   assertEquals(summary.humidityOutOfRangeCount, 2);
+});
+
+Deno.test("温度と湿度がそろうサンプルから不快指数を集計できる", () => {
+  const summary = summarizeAirQualityEntries([
+    createEntry(1000, { temperature: 22, humidity: 40 }),
+    createEntry(2000, { temperature: 24.2, humidity: 51 }),
+    createEntry(3000, { temperature: 25 }),
+  ]);
+
+  assertEquals(summary.discomfortIndex, {
+    latest: calculateDiscomfortIndex(24.2, 51),
+    min: calculateDiscomfortIndex(22, 40),
+    max: calculateDiscomfortIndex(24.2, 51),
+    average:
+      (calculateDiscomfortIndex(22, 40) + calculateDiscomfortIndex(24.2, 51)) /
+      2,
+  });
 });
 
 Deno.test("部分的な基準値から既定値込みで空気品質基準を解決できる", () => {
@@ -200,6 +224,7 @@ Deno.test("固定ウィンドウごとに空気品質を集計できる", () => 
           max: 40,
           average: 40,
         },
+        discomfortIndex: {},
         criteria: DEFAULT_AIR_QUALITY_CRITERIA,
         co2Threshold: 1000,
         co2ThresholdExceededCount: 0,
@@ -232,6 +257,7 @@ Deno.test("固定ウィンドウごとに空気品質を集計できる", () => 
           max: 50,
           average: 50,
         },
+        discomfortIndex: {},
         criteria: DEFAULT_AIR_QUALITY_CRITERIA,
         co2Threshold: 1000,
         co2ThresholdExceededCount: 1,

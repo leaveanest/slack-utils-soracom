@@ -46,6 +46,7 @@ export type AirQualitySummary = {
   co2: AirQualityMetricSummary;
   temperature: AirQualityMetricSummary;
   humidity: AirQualityMetricSummary;
+  discomfortIndex?: AirQualityMetricSummary;
   criteria: AirQualityCriteria;
   co2Threshold: number;
   co2ThresholdExceededCount: number;
@@ -342,6 +343,25 @@ export function compareAirQualitySummaries(
 }
 
 /**
+ * Calculates the discomfort index from temperature and humidity.
+ *
+ * Uses the common Japanese discomfort index formula with Celsius temperature
+ * and relative humidity.
+ *
+ * @param temperature - Temperature in Celsius
+ * @param humidity - Relative humidity in percent
+ * @returns Discomfort index
+ */
+export function calculateDiscomfortIndex(
+  temperature: number,
+  humidity: number,
+): number {
+  return 0.81 * temperature +
+    0.01 * humidity * (0.99 * temperature - 14.3) +
+    46.3;
+}
+
+/**
  * Finds the largest CO2 change between consecutive samples.
  *
  * Samples without CO2 values are ignored. When magnitudes tie, the latest spike wins.
@@ -430,6 +450,7 @@ function summarizeAirQualitySamples(
     co2: summarizeMetric(sortedSamples, "co2"),
     temperature: summarizeMetric(sortedSamples, "temperature"),
     humidity: summarizeMetric(sortedSamples, "humidity"),
+    discomfortIndex: summarizeDiscomfortIndex(sortedSamples),
     criteria,
     co2Threshold: criteria.co2Max,
     co2ThresholdExceededCount,
@@ -453,6 +474,37 @@ function summarizeMetric(
 ): AirQualityMetricSummary {
   const values = samples
     .map((sample) => sample[metric])
+    .filter((value): value is number => value !== undefined);
+
+  if (values.length === 0) {
+    return {};
+  }
+
+  return {
+    latest: values[values.length - 1],
+    min: Math.min(...values),
+    max: Math.max(...values),
+    average: values.reduce((sum, value) => sum + value, 0) / values.length,
+  };
+}
+
+/**
+ * Creates summary values for the discomfort index across samples.
+ *
+ * Samples without both temperature and humidity are ignored.
+ *
+ * @param samples - Extracted air quality samples
+ * @returns Discomfort index summary
+ */
+function summarizeDiscomfortIndex(
+  samples: AirQualitySample[],
+): AirQualityMetricSummary {
+  const values = samples
+    .map((sample) =>
+      sample.temperature !== undefined && sample.humidity !== undefined
+        ? calculateDiscomfortIndex(sample.temperature, sample.humidity)
+        : undefined
+    )
     .filter((value): value is number => value !== undefined);
 
   if (values.length === 0) {
