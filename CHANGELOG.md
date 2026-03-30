@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.2](https://github.com/leaveanest/slack-utils-iot/compare/v1.0.1...v1.0.2) (2026-03-30)
+
+
+### Bug Fixes
+
+* skip Claude PR review for fork pull requests ([1911dd1](https://github.com/leaveanest/slack-utils-iot/commit/1911dd1407bbffe7023cb7e5d26f9309f1136641))
+
 ## [1.0.1](https://github.com/leaveanest/slack-utils-iot/compare/v1.0.0...v1.0.1) (2026-03-26)
 
 
