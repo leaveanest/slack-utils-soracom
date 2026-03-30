@@ -17,7 +17,7 @@ jobs:
     # PR作成・更新時、または @claude メンションがあった場合に実行
     # Note: PRへの通常コメントは issue_comment イベントで発火（pull_request != null で判定）
     if: |
-      (github.event_name == 'pull_request') ||
+      (github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false) ||
       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
       (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') && github.event.issue.pull_request != null)
     runs-on: ubuntu-latest
