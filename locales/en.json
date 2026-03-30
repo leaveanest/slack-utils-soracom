@@ -159,7 +159,7 @@
       "air_quality_metric_temperature": "Temperature (°C)",
       "air_quality_metric_humidity": "Humidity (%)",
       "air_quality_metric_discomfort_index": "Discomfort Index",
-      "air_quality_discomfort_index_category_line": "Category: {category}",
+      "air_quality_discomfort_index_summary_category": "Discomfort category: {category}",
       "air_quality_discomfort_index_category_cold": "Cold",
       "air_quality_discomfort_index_category_chilly": "Chilly",
       "air_quality_discomfort_index_category_neutral": "No noticeable discomfort",

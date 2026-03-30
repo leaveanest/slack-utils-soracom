@@ -199,8 +199,9 @@ export function formatCo2DailyAirQualityReportMessage(
         t("soracom.messages.air_quality_sample_count", {
           count: summary.sampleCount,
         }),
+        formatDiscomfortIndexSummaryCategoryLine(summary.discomfortIndex ?? {}),
         ...formatCriteriaViolationLines(criteria),
-      ]),
+      ].filter((line): line is string => line.length > 0)),
     ].join("\n"),
     [
       `*${t("soracom.messages.air_quality_report_section_peak")}*`,
@@ -313,11 +314,6 @@ function formatDiscomfortIndexSummaryBlock(
       })
     }`,
     `  - ${
-      t("soracom.messages.air_quality_discomfort_index_category_line", {
-        category: resolveDiscomfortIndexCategory(summary.latest),
-      })
-    }`,
-    `  - ${
       t("soracom.messages.air_quality_metric_average", {
         value: formatDiscomfortIndexNumber(summary.average),
       })
@@ -333,6 +329,18 @@ function formatDiscomfortIndexSummaryBlock(
       })
     }`,
   ].join("\n");
+}
+
+function formatDiscomfortIndexSummaryCategoryLine(
+  summary: AirQualityMetricSummary,
+): string {
+  if (summary.latest === undefined) {
+    return "";
+  }
+
+  return t("soracom.messages.air_quality_discomfort_index_summary_category", {
+    category: resolveDiscomfortIndexCategory(summary.latest),
+  });
 }
 
 /**

@@ -163,7 +163,8 @@ Deno.test({
     assertEquals(message.includes("  - 平均: 910.4"), true);
     assertEquals(message.includes("- 温度 (℃)\n  - 最新: 24.2"), true);
     assertEquals(message.includes("- 不快指数\n  - 最新: 70.8"), true);
-    assertEquals(message.includes("  - 区分: 暑くない"), true);
+    assertEquals(message.includes("  - 区分: 暑くない"), false);
+    assertEquals(message.includes("- 不快指数区分: 暑くない"), true);
     assertEquals(message.includes("  - 平均: 69.7"), true);
     assertEquals(
       message.includes("  - 最大: 1250\n\n- 温度 (℃)\n  - 最新: 24.2"),
@@ -202,7 +203,8 @@ Deno.test({
       peakBucket,
     );
 
-    assertEquals(message.includes("  - 区分: やや暑い"), true);
+    assertEquals(message.includes("  - 区分: やや暑い"), false);
+    assertEquals(message.includes("- 不快指数区分: やや暑い"), true);
   },
 });
 
@@ -292,6 +294,7 @@ Deno.test({
         true,
       );
       assertEquals(message.includes("不快指数"), true);
+      assertEquals(message.includes("不快指数区分"), false);
       assertEquals(message.includes("  - データなし"), true);
     } finally {
       setLocale(originalLocale);
