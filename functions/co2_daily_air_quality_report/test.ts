@@ -10,6 +10,7 @@ import {
   filterCo2DailyAirQualityReportSims,
   formatCo2DailyAirQualityReportMessage,
   formatCo2DailyAirQualityReportSummaryMessage,
+  hasAirQualitySummaryAnomaly,
   maskImsiForDisplay,
   resolveCo2DailyAirQualityReportCriteria,
   resolveCo2DailyAirQualitySensorName,
@@ -236,6 +237,26 @@ Deno.test({
 });
 
 Deno.test({
+  name: "空気品質サマリーに閾値異常があれば true を返す",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    assertEquals(hasAirQualitySummaryAnomaly(summaryWithData), true);
+    assertEquals(
+      hasAirQualitySummaryAnomaly({
+        ...summaryWithData,
+        co2ThresholdExceededCount: 0,
+        temperatureOutOfRangeCount: 0,
+        humidityOutOfRangeCount: 0,
+      }),
+      false,
+    );
+  },
+});
+
+Deno.test({
   name: "データがない場合は空データ用メッセージを返す",
   sanitizeResources: false,
   sanitizeOps: false,
@@ -450,6 +471,41 @@ Deno.test({
     assertEquals(
       definition.input_parameters?.properties?.co2_threshold?.description
         ?.includes("既定値: 1000"),
+      true,
+    );
+  },
+});
+
+Deno.test({
+  name: "空気品質レポートは後続step向けの異常出力を持つ",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    const definition = Co2DailyAirQualityReportFunctionDefinition
+      .definition as {
+        output_parameters?: {
+          properties?: {
+            has_anomaly?: {
+              type?: string;
+              title?: string;
+            };
+          };
+          required?: string[];
+        };
+      };
+
+    assertEquals(
+      definition.output_parameters?.properties?.has_anomaly?.type,
+      "boolean",
+    );
+    assertEquals(
+      definition.output_parameters?.properties?.has_anomaly?.title,
+      "異常あり",
+    );
+    assertEquals(
+      definition.output_parameters?.required?.includes("has_anomaly"),
       true,
     );
   },

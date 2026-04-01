@@ -140,6 +140,11 @@ export const Co2DailyAirQualityReportFunctionDefinition = DefineFunction({
         type: Schema.types.number,
         description: "投稿したレポート数",
       },
+      has_anomaly: {
+        type: Schema.types.boolean,
+        title: "異常あり",
+        description: "いずれかの SIM で閾値異常を検知したかどうか",
+      },
       failed_count: {
         type: Schema.types.number,
         description: "失敗したレポート数",
@@ -149,7 +154,13 @@ export const Co2DailyAirQualityReportFunctionDefinition = DefineFunction({
         description: "実行サマリー",
       },
     },
-    required: ["processed_count", "reported_count", "failed_count", "message"],
+    required: [
+      "processed_count",
+      "reported_count",
+      "has_anomaly",
+      "failed_count",
+      "message",
+    ],
   },
 });
 
@@ -457,6 +468,18 @@ function getAirQualityCriteriaView(
   };
 }
 
+/**
+ * 空気品質サマリーに閾値異常があるかを判定します。
+ *
+ * @param summary - 集計済み空気品質サマリー
+ * @returns いずれかの基準を逸脱していれば `true`
+ */
+export function hasAirQualitySummaryAnomaly(
+  summary: AirQualitySummary,
+): boolean {
+  return hasAirQualityCriteriaViolation(getAirQualityCriteriaView(summary));
+}
+
 function hasAirQualityCriteriaViolation(
   criteria: AirQualityCriteriaView,
 ): boolean {
@@ -714,6 +737,7 @@ export default SlackFunction(
       }
 
       const generatedReports: string[] = [];
+      let hasAnomaly = false;
       let failedCount = 0;
 
       for (const sim of targetSims) {
@@ -741,6 +765,7 @@ export default SlackFunction(
               criteria,
             ),
           );
+          hasAnomaly = hasAnomaly || hasAirQualitySummaryAnomaly(summary);
           const message = formatCo2DailyAirQualityReportMessage(
             resolveCo2DailyAirQualitySensorName(sim),
             maskImsiForDisplay(imsi),
@@ -838,6 +863,7 @@ export default SlackFunction(
         outputs: {
           processed_count: targetSims.length,
           reported_count: reportedCount,
+          has_anomaly: hasAnomaly,
           failed_count: failedCount,
           message,
         },
