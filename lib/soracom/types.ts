@@ -188,6 +188,8 @@ export interface SoracomAllSoraCamImageExportTask {
   sortIndex: number;
   /** claim ID */
   claimId?: string;
+  /** 次回自動継続実行用 trigger ID */
+  continuationTriggerId?: string;
   /** エクスポート ID */
   exportId: string;
   /** 状態 */

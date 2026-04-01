@@ -35,6 +35,10 @@ const SoracomAllSoraCamImageExportTasksDatastore = DefineDatastore({
       type: Schema.types.string,
       description: "実行 claim ID",
     },
+    continuation_trigger_id: {
+      type: Schema.types.string,
+      description: "次回自動継続実行用 trigger ID",
+    },
     export_id: {
       type: Schema.types.string,
       description: "エクスポート ID",

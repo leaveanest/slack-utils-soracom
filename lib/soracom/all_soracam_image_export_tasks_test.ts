@@ -93,6 +93,7 @@ Deno.test("全台画像スナップショットタスクを保存して一覧取
     deviceId: "cam-2",
     deviceName: "Office",
     sortIndex: 1,
+    continuationTriggerId: "Ft123",
     exportId: "exp-2",
     status: "processing",
     imageUrl: "",
@@ -118,8 +119,32 @@ Deno.test("全台画像スナップショットタスクを保存して一覧取
   const tasks = await listAllSoraCamImageExportTasks(client, "C123");
 
   assertEquals(task?.deviceId, "cam-2");
+  assertEquals(task?.continuationTriggerId, "Ft123");
   assertEquals(tasks.map((entry) => entry.deviceId), ["cam-1", "cam-2"]);
   assertEquals(tasks[1].status, "processing");
+});
+
+Deno.test("continuation trigger ID がない旧タスクレコードも読み込める", async () => {
+  const client = createMockClient({
+    "C123:cam-1": {
+      task_key: "C123:cam-1",
+      job_key: "C123",
+      channel_id: "C123",
+      device_id: "cam-1",
+      device_name: "Entrance",
+      sort_index: 0,
+      export_id: "",
+      status: "queued",
+      image_url: "",
+      created_at: "2026-03-19T01:00:00.000Z",
+      updated_at: "2026-03-19T01:00:00.000Z",
+    },
+  });
+
+  const task = await getAllSoraCamImageExportTask(client, "C123:cam-1");
+
+  assertEquals(task?.deviceId, "cam-1");
+  assertEquals(task?.continuationTriggerId, undefined);
 });
 
 Deno.test(
