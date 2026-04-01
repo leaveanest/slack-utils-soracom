@@ -48,6 +48,7 @@ export type SoracomAllSoraCamImageExportTaskInput = {
   deviceName: string;
   sortIndex: number;
   claimId?: string;
+  continuationTriggerId?: string;
   exportId: string;
   status: "queued" | "processing" | "uploaded" | "failed";
   imageUrl: string;
@@ -92,6 +93,9 @@ export async function upsertAllSoraCamImageExportTask(
       device_name: task.deviceName,
       sort_index: task.sortIndex,
       ...(task.claimId ? { claim_id: task.claimId } : {}),
+      ...(task.continuationTriggerId
+        ? { continuation_trigger_id: task.continuationTriggerId }
+        : {}),
       export_id: task.exportId,
       status: task.status,
       image_url: task.imageUrl,
@@ -225,6 +229,9 @@ function normalizeAllSoraCamImageExportTask(
   const deviceName = readNonEmptyString(item.device_name);
   const sortIndex = readNumber(item.sort_index);
   const claimId = readOptionalNonEmptyString(item.claim_id);
+  const continuationTriggerId = readOptionalNonEmptyString(
+    item.continuation_trigger_id,
+  );
   const exportId = readString(item.export_id);
   const status = readTaskStatus(item.status);
   const imageUrl = readString(item.image_url);
@@ -258,6 +265,7 @@ function normalizeAllSoraCamImageExportTask(
     deviceName,
     sortIndex,
     ...(claimId ? { claimId } : {}),
+    ...(continuationTriggerId ? { continuationTriggerId } : {}),
     exportId,
     status,
     imageUrl,

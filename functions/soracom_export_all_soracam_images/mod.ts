@@ -169,6 +169,10 @@ interface AllSoraCamImageExportTriggerClient {
         error?: string;
         trigger?: { id?: string };
       }>;
+      delete: (params: { trigger_id: string }) => Promise<{
+        ok: boolean;
+        error?: string;
+      }>;
     };
   };
 }
@@ -363,6 +367,7 @@ function withProcessingClaim(
   return {
     ...task,
     claimId,
+    continuationTriggerId: undefined,
     status: "processing",
     updatedAt: new Date(now).toISOString(),
   };
@@ -375,6 +380,7 @@ function withoutClaim(
   return {
     ...task,
     claimId: undefined,
+    continuationTriggerId: undefined,
     updatedAt: new Date(now).toISOString(),
   };
 }
@@ -403,6 +409,7 @@ function markTaskUploaded(
   return {
     ...task,
     claimId: undefined,
+    continuationTriggerId: undefined,
     exportId,
     status: "uploaded",
     imageUrl,
@@ -421,6 +428,7 @@ function markTaskFailed(
   return {
     ...task,
     claimId: undefined,
+    continuationTriggerId: undefined,
     status: "failed",
     errorMessage,
     updatedAt: new Date(now).toISOString(),
@@ -435,6 +443,7 @@ function markTaskProcessing(
 ): SoracomAllSoraCamImageExportTask {
   return {
     ...task,
+    continuationTriggerId: undefined,
     exportId,
     status: "processing",
     snapshotTime,
@@ -612,7 +621,7 @@ async function scheduleAllSoraCamImageExportTaskRun(
   taskKey: string,
   now: number,
   delayMs = ALL_SORACAM_EXPORT_TRIGGER_DELAY_MS,
-): Promise<void> {
+): Promise<string> {
   const response = await client.workflows.triggers.create({
     type: TriggerTypes.Scheduled,
     name: t("soracom.messages.soracam_all_image_exports_trigger_name"),
@@ -637,6 +646,71 @@ async function scheduleAllSoraCamImageExportTaskRun(
       }),
     );
   }
+
+  return response.trigger.id;
+}
+
+async function deleteAllSoraCamImageExportContinuationTrigger(
+  client: AllSoraCamImageExportClient,
+  triggerId: string,
+): Promise<void> {
+  const response = await client.workflows.triggers.delete({
+    trigger_id: triggerId,
+  });
+
+  if (
+    !response.ok && response.error && response.error !== "trigger_not_found"
+  ) {
+    console.warn(
+      "soracom_export_all_soracam_images trigger delete warning:",
+      response.error,
+    );
+  }
+}
+
+async function clearTaskContinuationTrigger(params: {
+  client: AllSoraCamImageExportClient;
+  task: SoracomAllSoraCamImageExportTask;
+  now: number;
+}): Promise<SoracomAllSoraCamImageExportTask> {
+  if (!params.task.continuationTriggerId) {
+    return params.task;
+  }
+
+  await deleteAllSoraCamImageExportContinuationTrigger(
+    params.client,
+    params.task.continuationTriggerId,
+  );
+  const nextTask = {
+    ...params.task,
+    continuationTriggerId: undefined,
+    updatedAt: new Date(params.now).toISOString(),
+  };
+  await upsertAllSoraCamImageExportTask(params.client, nextTask);
+  return nextTask;
+}
+
+async function scheduleTaskContinuation(params: {
+  client: AllSoraCamImageExportClient;
+  task: SoracomAllSoraCamImageExportTask;
+  now: number;
+  delayMs?: number;
+}): Promise<SoracomAllSoraCamImageExportTask> {
+  const triggerId = await scheduleAllSoraCamImageExportTaskRun(
+    params.client,
+    params.task.channelId,
+    params.task.jobKey,
+    params.task.taskKey,
+    params.now,
+    params.delayMs,
+  );
+  const nextTask = {
+    ...params.task,
+    continuationTriggerId: triggerId,
+    updatedAt: new Date(params.now).toISOString(),
+  };
+  await upsertAllSoraCamImageExportTask(params.client, nextTask);
+  return nextTask;
 }
 
 async function claimAllSoraCamImageExportTask(
@@ -706,13 +780,15 @@ async function fillAllSoraCamImageExportFanoutWindow(params: {
       continue;
     }
 
-    await upsertAllSoraCamImageExportTask(
-      params.client,
-      {
-        ...withoutClaim(task, params.now),
-        status: "queued",
-      },
-    );
+    const clearedTask = await clearTaskContinuationTrigger({
+      client: params.client,
+      task,
+      now: params.now,
+    });
+    await upsertAllSoraCamImageExportTask(params.client, {
+      ...withoutClaim(clearedTask, params.now),
+      status: "queued",
+    });
   }
 
   tasks = await listAllSoraCamImageExportTasks(
@@ -735,13 +811,11 @@ async function fillAllSoraCamImageExportFanoutWindow(params: {
     }
 
     try {
-      await scheduleAllSoraCamImageExportTaskRun(
-        params.client,
-        params.job.channelId,
-        params.job.jobKey,
-        claimedTask.taskKey,
-        params.now,
-      );
+      await scheduleTaskContinuation({
+        client: params.client,
+        task: claimedTask,
+        now: params.now,
+      });
     } catch (error) {
       await upsertAllSoraCamImageExportTask(
         params.client,
@@ -985,11 +1059,18 @@ async function processAllSoraCamImageExportWorker(params: {
     params.client,
     params.taskKey,
   );
+  const nextTaskBase = task
+    ? await clearTaskContinuationTrigger({
+      client: params.client,
+      task,
+      now: params.now,
+    })
+    : null;
   if (
-    !task ||
-    task.jobKey !== params.jobKey ||
-    task.status === "uploaded" ||
-    task.status === "failed"
+    !nextTaskBase ||
+    nextTaskBase.jobKey !== params.jobKey ||
+    nextTaskBase.status === "uploaded" ||
+    nextTaskBase.status === "failed"
   ) {
     return await refreshAllSoraCamImageExportProgress({
       client: params.client,
@@ -998,33 +1079,31 @@ async function processAllSoraCamImageExportWorker(params: {
     });
   }
 
-  const nextTask = task.exportId
+  const nextTask = nextTaskBase.exportId
     ? await resumeProcessingSoraCamDeviceExport(
       params.soracomClient,
       params.client,
       params.channelId,
-      task,
+      nextTaskBase,
       params.now,
     )
     : await startQueuedSoraCamDeviceExport(
       params.soracomClient,
       params.client,
       params.channelId,
-      task,
+      nextTaskBase,
       params.now,
     );
-  await upsertAllSoraCamImageExportTask(params.client, nextTask);
 
   if (nextTask.status === "processing" && nextTask.exportId) {
-    await scheduleAllSoraCamImageExportTaskRun(
-      params.client,
-      params.channelId,
-      params.jobKey,
-      nextTask.taskKey,
-      params.now,
-      ALL_SORACAM_EXPORT_TASK_RETRY_DELAY_MS,
-    );
+    await scheduleTaskContinuation({
+      client: params.client,
+      task: nextTask,
+      now: params.now,
+      delayMs: ALL_SORACAM_EXPORT_TASK_RETRY_DELAY_MS,
+    });
   } else {
+    await upsertAllSoraCamImageExportTask(params.client, nextTask);
     await fillAllSoraCamImageExportFanoutWindow({
       client: params.client,
       job,
