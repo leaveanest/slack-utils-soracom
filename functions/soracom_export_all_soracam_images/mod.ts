@@ -43,6 +43,8 @@ export const ALL_SORACAM_EXPORT_CREATION_WAIT_RETRIES = 20;
 export const ALL_SORACAM_EXPORT_CREATION_WAIT_INTERVAL_MS = 250;
 export const ALL_SORACAM_EXPORT_TASK_RETRY_DELAY_MS = 3_000;
 export const ALL_SORACAM_EXPORT_STALE_UNSTARTED_TASK_MS = 60_000;
+export const ALL_SORACAM_EXPORT_MAX_TASK_RETRIES = 2;
+export const ALL_SORACAM_EXPORT_FAILED_DETAIL_LIMIT = 3;
 
 const ALL_SORACAM_EXPORT_WORKFLOW_PATH =
   "#/workflows/soracom_export_all_soracam_images_workflow";
@@ -201,6 +203,12 @@ type AllSoraCamImageExportResult = {
   message: string;
 };
 
+type FailedAllSoraCamImageExportTaskDetail = {
+  deviceId: string;
+  deviceName: string;
+  errorMessage: string;
+};
+
 /**
  * エクスポート結果件数を状態ごとに集計します。
  *
@@ -278,6 +286,7 @@ export function formatAllSoraCamImageExportMessage(
   processingCount: number,
   failedCount: number,
   remainingCount: number,
+  failedTasks: FailedAllSoraCamImageExportTaskDetail[] = [],
 ): string {
   if (deviceCount === 0) {
     return t("soracom.messages.soracam_no_devices");
@@ -295,8 +304,36 @@ export function formatAllSoraCamImageExportMessage(
       failed: failedCount,
       remaining: remainingCount,
     }),
-    t("soracom.messages.soracam_all_image_exports_channel_notice"),
   ];
+
+  if (failedTasks.length > 0) {
+    const visibleFailedTasks = failedTasks.slice(
+      0,
+      ALL_SORACAM_EXPORT_FAILED_DETAIL_LIMIT,
+    );
+    lines.push(
+      t("soracom.messages.soracam_all_image_exports_failed_details_header"),
+    );
+    lines.push(
+      ...visibleFailedTasks.map((task) =>
+        t("soracom.messages.soracam_all_image_exports_failed_details_item", {
+          deviceName: task.deviceName,
+          deviceId: task.deviceId,
+          message: task.errorMessage,
+        })
+      ),
+    );
+
+    if (failedTasks.length > visibleFailedTasks.length) {
+      lines.push(
+        t("soracom.messages.soracam_all_image_exports_failed_details_more", {
+          count: failedTasks.length - visibleFailedTasks.length,
+        }),
+      );
+    }
+  }
+
+  lines.push(t("soracom.messages.soracam_all_image_exports_channel_notice"));
 
   if (remainingCount > 0) {
     lines.push(t("soracom.messages.soracam_all_image_exports_resume_notice"));
@@ -354,6 +391,7 @@ function createQueuedAllSoraCamImageExportTask(
     exportId: "",
     status: "queued",
     imageUrl: "",
+    retryCount: 0,
     createdAt: timestamp,
     updatedAt: timestamp,
   };
@@ -369,6 +407,7 @@ function withProcessingClaim(
     claimId,
     continuationTriggerId: undefined,
     status: "processing",
+    errorMessage: undefined,
     updatedAt: new Date(now).toISOString(),
   };
 }
@@ -447,8 +486,69 @@ function markTaskProcessing(
     exportId,
     status: "processing",
     snapshotTime,
+    errorMessage: undefined,
     updatedAt: new Date(now).toISOString(),
   };
+}
+
+function markTaskQueuedForRetry(
+  task: SoracomAllSoraCamImageExportTask,
+  errorMessage: string,
+  now: number,
+): SoracomAllSoraCamImageExportTask {
+  return {
+    ...task,
+    claimId: undefined,
+    continuationTriggerId: undefined,
+    exportId: "",
+    status: "queued",
+    imageUrl: "",
+    snapshotTime: undefined,
+    slackFileId: undefined,
+    retryCount: (task.retryCount ?? 0) + 1,
+    errorMessage,
+    updatedAt: new Date(now).toISOString(),
+  };
+}
+
+function buildFailedTaskDetails(
+  tasks: SoracomAllSoraCamImageExportTask[],
+): FailedAllSoraCamImageExportTaskDetail[] {
+  return tasks
+    .filter((task) => task.status === "failed" && !!task.errorMessage)
+    .map((task) => ({
+      deviceId: task.deviceId,
+      deviceName: task.deviceName,
+      errorMessage: task.errorMessage!,
+    }));
+}
+
+function isNonRetryableAllSoraCamImageExportError(
+  task: SoracomAllSoraCamImageExportTask,
+  errorMessage: string,
+): boolean {
+  return errorMessage ===
+    t("soracom.errors.soracam_no_recent_recordings", {
+      deviceId: task.deviceId,
+    });
+}
+
+function resolveFailedAllSoraCamImageExportTask(
+  task: SoracomAllSoraCamImageExportTask,
+  error: unknown,
+  now: number,
+): SoracomAllSoraCamImageExportTask {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  const retryCount = task.retryCount ?? 0;
+
+  if (
+    retryCount < ALL_SORACAM_EXPORT_MAX_TASK_RETRIES &&
+    !isNonRetryableAllSoraCamImageExportError(task, errorMessage)
+  ) {
+    return markTaskQueuedForRetry(task, errorMessage, now);
+  }
+
+  return markTaskFailed(task, errorMessage, now);
 }
 
 function createStartingAllSoraCamImageExportJob(
@@ -929,12 +1029,13 @@ async function startQueuedSoraCamDeviceExport(
 
     return markTaskProcessing(task, exportResult.exportId, snapshotTime, now);
   } catch (error) {
+    const nextTask = resolveFailedAllSoraCamImageExportTask(task, error, now);
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error(
       `soracom_export_all_soracam_images start error (${task.deviceId}):`,
       errorMessage,
     );
-    return markTaskFailed(task, errorMessage, now);
+    return nextTask;
   }
 }
 
@@ -972,12 +1073,13 @@ async function resumeProcessingSoraCamDeviceExport(
       updatedAt: new Date(now).toISOString(),
     };
   } catch (error) {
+    const nextTask = resolveFailedAllSoraCamImageExportTask(task, error, now);
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error(
       `soracom_export_all_soracam_images resume error (${task.deviceId}):`,
       errorMessage,
     );
-    return markTaskFailed(task, errorMessage, now);
+    return nextTask;
   }
 }
 
@@ -1001,6 +1103,7 @@ async function refreshAllSoraCamImageExportProgress(params: {
     summary.processing,
     summary.failed,
     summary.remaining,
+    buildFailedTaskDetails(tasks),
   );
   const response = await params.client.chat.update({
     channel: nextJob.channelId,

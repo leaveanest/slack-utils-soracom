@@ -200,6 +200,8 @@ export interface SoracomAllSoraCamImageExportTask {
   snapshotTime?: number;
   /** Slack ファイル ID */
   slackFileId?: string;
+  /** 再試行回数 */
+  retryCount?: number;
   /** 失敗詳細 */
   errorMessage?: string;
   /** 作成日時 */

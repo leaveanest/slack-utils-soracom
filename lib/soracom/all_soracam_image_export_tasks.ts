@@ -54,6 +54,7 @@ export type SoracomAllSoraCamImageExportTaskInput = {
   imageUrl: string;
   snapshotTime?: number;
   slackFileId?: string;
+  retryCount?: number;
   errorMessage?: string;
   createdAt: string;
   updatedAt: string;
@@ -103,6 +104,9 @@ export async function upsertAllSoraCamImageExportTask(
         ? {}
         : { snapshot_time: task.snapshotTime }),
       ...(task.slackFileId ? { slack_file_id: task.slackFileId } : {}),
+      ...(task.retryCount === undefined
+        ? {}
+        : { retry_count: task.retryCount }),
       ...(task.errorMessage ? { error_message: task.errorMessage } : {}),
       created_at: task.createdAt,
       updated_at: task.updatedAt,
@@ -237,6 +241,7 @@ function normalizeAllSoraCamImageExportTask(
   const imageUrl = readString(item.image_url);
   const snapshotTime = readNumber(item.snapshot_time);
   const slackFileId = readOptionalNonEmptyString(item.slack_file_id);
+  const retryCount = readNumber(item.retry_count);
   const errorMessage = readOptionalNonEmptyString(item.error_message);
   const createdAt = readNonEmptyString(item.created_at);
   const updatedAt = readNonEmptyString(item.updated_at);
@@ -271,6 +276,7 @@ function normalizeAllSoraCamImageExportTask(
     imageUrl,
     ...(snapshotTime === undefined ? {} : { snapshotTime }),
     ...(slackFileId ? { slackFileId } : {}),
+    ...(retryCount === undefined ? {} : { retryCount }),
     ...(errorMessage ? { errorMessage } : {}),
     createdAt,
     updatedAt,
