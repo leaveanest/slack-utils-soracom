@@ -59,6 +59,10 @@ const SoracomAllSoraCamImageExportTasksDatastore = DefineDatastore({
       type: Schema.types.string,
       description: "アップロード済み Slack ファイル ID",
     },
+    retry_count: {
+      type: Schema.types.number,
+      description: "再試行回数",
+    },
     error_message: {
       type: Schema.types.string,
       description: "失敗詳細",
