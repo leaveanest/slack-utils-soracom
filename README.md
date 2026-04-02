@@ -71,8 +71,8 @@ slack login
 
 ```bash
 # Slack App Configuration
-SLACK_APP_NAME="Slack Utils IoT"          # アプリ名
-SLACK_APP_DESCRIPTION="IoT utilities for Slack"  # アプリの説明
+SLACK_APP_NAME="Slack Utils SORACOM"          # アプリ名
+SLACK_APP_DESCRIPTION="SORACOM utilities for Slack"  # アプリの説明
 
 # "SORACOM" API Authentication (required)
 SORACOM_AUTH_KEY_ID=your-auth-key-id

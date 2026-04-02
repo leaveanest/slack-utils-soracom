@@ -97,8 +97,8 @@ cp .env.example .env
 `.env` には少なくとも次を設定します。
 
 ```bash
-SLACK_APP_NAME="Slack Utils IoT"
-SLACK_APP_DESCRIPTION="IoT utilities for Slack"
+SLACK_APP_NAME="Slack Utils SORACOM"
+SLACK_APP_DESCRIPTION="SORACOM utilities for Slack"
 LOCALE=ja
 ```
 

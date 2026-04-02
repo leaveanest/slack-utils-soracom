@@ -26,9 +26,9 @@ import SoracomAllSoraCamImageExportTasksDatastore from "./datastores/soracom_all
 import SoracomMotionCaptureJobsDatastore from "./datastores/soracom_motion_capture_jobs.ts";
 
 // Load from environment variables with fallback defaults
-const APP_NAME = Deno.env.get("SLACK_APP_NAME") || "Slack Utils IoT";
+const APP_NAME = Deno.env.get("SLACK_APP_NAME") || "Slack Utils SORACOM";
 const APP_DESCRIPTION = Deno.env.get("SLACK_APP_DESCRIPTION") ||
-  "IoT utilities for Slack";
+  "SORACOM utilities for Slack";
 
 export default Manifest({
   name: APP_NAME,
