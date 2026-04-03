@@ -1119,6 +1119,11 @@ async function refreshAllSoraCamImageExportProgress(params: {
     );
   }
 
+  if (nextStatus === "completed") {
+    await deleteAllSoraCamImageExportTasksByJob(params.client, nextJob.jobKey);
+    await deleteAllSoraCamImageExportJob(params.client, nextJob.channelId);
+  }
+
   return {
     deviceCount: nextJob.totalDeviceCount,
     completedCount: summary.uploaded,
