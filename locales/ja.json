@@ -36,6 +36,7 @@
       "sim_not_found": "SIMが見つかりません: {simId}",
       "stats_fetch_failed": "通信量統計の取得に失敗しました: {error}",
       "soracam_no_recent_recordings": "デバイス {deviceId} の最近の録画が見つかりません",
+      "soracam_recording_not_found_for_time": "デバイス {deviceId} の指定時刻 {time} の録画が見つかりません",
       "soracam_image_export_failed": "デバイス {deviceId} のソラカメ画像スナップショット取得に失敗しました: {status}",
       "soracam_image_export_timeout": "デバイス {deviceId} のソラカメ画像スナップショット待機がタイムアウトしました（エクスポートID: {exportId}, 状態: {status}）",
       "soracam_snapshot_download_failed": "デバイス {deviceId} のソラカメ画像ダウンロードに失敗しました (HTTP {status})",

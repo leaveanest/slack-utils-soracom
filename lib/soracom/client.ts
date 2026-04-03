@@ -16,7 +16,7 @@
  */
 
 import { type EnvVars, getRuntimeEnv } from "../env.ts";
-import { t } from "../i18n/mod.ts";
+import { formatLocalizedDateTime, t } from "../i18n/mod.ts";
 import { runWithImmediateRetry } from "./immediate_retry.ts";
 import type {
   AirStatsDataPoint,
@@ -514,6 +514,23 @@ export class SoracomClient {
     );
   }
 
+  private async createSoraCamImageExportRequestError(
+    response: Response,
+    deviceId: string,
+    time: number,
+  ): Promise<Error> {
+    if (response.status === 404) {
+      return new Error(
+        t("soracom.errors.soracam_recording_not_found_for_time", {
+          deviceId,
+          time: formatLocalizedDateTime(time),
+        }),
+      );
+    }
+
+    return await this.createApiRequestError(response);
+  }
+
   /**
    * 認証済みHTTPリクエストを送信します
    *
@@ -907,13 +924,24 @@ export class SoracomClient {
     deviceId: string,
     time: number,
   ): Promise<SoraCamImageExport> {
-    const response = await this.request(
+    await this.ensureAuthenticated();
+
+    const response = await this.fetchAuthorized(
       `/sora_cam/devices/${deviceId}/images/exports`,
       {
         method: "POST",
         body: JSON.stringify({ time }),
       },
     );
+
+    if (!response.ok) {
+      throw await this.createSoraCamImageExportRequestError(
+        response,
+        deviceId,
+        time,
+      );
+    }
+
     const result: SoraCamImageExport = await response.json();
     return result;
   }

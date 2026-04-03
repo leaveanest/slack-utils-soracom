@@ -36,6 +36,7 @@
       "sim_not_found": "SIM not found: {simId}",
       "stats_fetch_failed": "Failed to fetch air usage stats: {error}",
       "soracam_no_recent_recordings": "No recent recordings found for device: {deviceId}",
+      "soracam_recording_not_found_for_time": "No recording found for device {deviceId} at the specified time: {time}",
       "soracam_image_export_failed": "SoraCam image snapshot failed for device {deviceId}: {status}",
       "soracam_image_export_timeout": "Timed out waiting for SoraCam image snapshot for device {deviceId} (exportId: {exportId}, status: {status})",
       "soracam_snapshot_download_failed": "Failed to download SoraCam snapshot for device {deviceId} (HTTP {status})",

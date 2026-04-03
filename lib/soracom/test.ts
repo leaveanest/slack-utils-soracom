@@ -876,6 +876,139 @@ Deno.test("getSoraCamImageExport: 一時的な 500 応答後に再試行で成�
   }
 });
 
+Deno.test("exportSoraCamImage: 画像エクスポートを正常に作成できる", async () => {
+  const client = new SoracomClient({
+    authKeyId: "key-id",
+    authKey: "secret",
+    coverageType: "jp",
+  });
+
+  const fetchStub = stub(
+    globalThis,
+    "fetch",
+    (input: string | URL | Request, init?: RequestInit) => {
+      const url = typeof input === "string"
+        ? input
+        : input instanceof URL
+        ? input.toString()
+        : input.url;
+
+      if (url.endsWith("/auth")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              apiKey: "api-key",
+              token: "api-token",
+            }),
+            {
+              status: 200,
+              headers: {
+                "Content-Type": "application/json",
+              },
+            },
+          ),
+        );
+      }
+
+      const requestUrl = new URL(url);
+      assertEquals(
+        requestUrl.pathname,
+        "/v1/sora_cam/devices/device-1/images/exports",
+      );
+      assertEquals(init?.method, "POST");
+      assertEquals(init?.body, JSON.stringify({ time: 1700000000000 }));
+
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            exportId: "export-1",
+            deviceId: "device-1",
+            status: "processing",
+            requestedTime: 1700000000000,
+          }),
+          {
+            status: 200,
+            headers: {
+              "Content-Type": "application/json",
+            },
+          },
+        ),
+      );
+    },
+  );
+
+  try {
+    const result = await client.exportSoraCamImage("device-1", 1700000000000);
+
+    assertEquals(result.exportId, "export-1");
+    assertEquals(result.status, "processing");
+  } finally {
+    fetchStub.restore();
+  }
+});
+
+Deno.test("exportSoraCamImage: 404 応答は指定時刻の録画未検出エラーに変換する", async () => {
+  const client = new SoracomClient({
+    authKeyId: "key-id",
+    authKey: "secret",
+    coverageType: "jp",
+  });
+
+  const fetchStub = stub(
+    globalThis,
+    "fetch",
+    (input: string | URL | Request) => {
+      const url = typeof input === "string"
+        ? input
+        : input instanceof URL
+        ? input.toString()
+        : input.url;
+
+      if (url.endsWith("/auth")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              apiKey: "api-key",
+              token: "api-token",
+            }),
+            {
+              status: 200,
+              headers: {
+                "Content-Type": "application/json",
+              },
+            },
+          ),
+        );
+      }
+
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            message:
+              "recorded video for the specified device was not found the specified period of time",
+          }),
+          {
+            status: 404,
+            headers: {
+              "Content-Type": "application/json",
+            },
+          },
+        ),
+      );
+    },
+  );
+
+  try {
+    await assertRejects(
+      () => client.exportSoraCamImage("device-1", 1700000000000),
+      Error,
+      "デバイス device-1 の指定時刻 2023-11-15 07:13:20 JST の録画が見つかりません",
+    );
+  } finally {
+    fetchStub.restore();
+  }
+});
+
 Deno.test("getSoraCamImageExport: 4xx 応答は再試行せず即失敗する", async () => {
   const client = new SoracomClient({
     authKeyId: "key-id",
