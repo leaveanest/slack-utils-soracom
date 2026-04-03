@@ -848,8 +848,14 @@ Deno.test("子 run は再試行上限到達後に failed と詳細を残す", as
   assertEquals(result.completedCount, 0);
   assertEquals(result.processingCount, 0);
   assertEquals(result.failedCount, 1);
-  assertEquals(await getAllSoraCamImageExportJob(client as never, "C123"), null);
-  assertEquals(await listAllSoraCamImageExportTasks(client as never, "C123"), []);
+  assertEquals(
+    await getAllSoraCamImageExportJob(client as never, "C123"),
+    null,
+  );
+  assertEquals(
+    await listAllSoraCamImageExportTasks(client as never, "C123"),
+    [],
+  );
   assertEquals(
     updates.at(-1)?.text.includes("Camera 1 (cam-1)"),
     true,
@@ -900,8 +906,14 @@ Deno.test("録画がない台は再試行せず failed にする", async () => {
   assertEquals(triggerDeletes, ["Ft1"]);
   assertEquals(result.failedCount, 1);
   assertEquals(result.processingCount, 0);
-  assertEquals(await getAllSoraCamImageExportJob(client as never, "C123"), null);
-  assertEquals(await listAllSoraCamImageExportTasks(client as never, "C123"), []);
+  assertEquals(
+    await getAllSoraCamImageExportJob(client as never, "C123"),
+    null,
+  );
+  assertEquals(
+    await listAllSoraCamImageExportTasks(client as never, "C123"),
+    [],
+  );
 });
 
 Deno.test("子 run の export status 一時エラーは同一 run 内で回復できる", async () => {
