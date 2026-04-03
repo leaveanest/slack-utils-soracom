@@ -1415,6 +1415,33 @@ async function cleanupCompletedAllSoraCamImageExport(params: {
     };
   }
 
+  const latestJob = await getAllSoraCamImageExportJob(
+    params.client,
+    params.channelId,
+  );
+  if (
+    !latestJob ||
+    latestJob.jobKey !== params.jobKey ||
+    latestJob.status !== "completed" ||
+    latestJob.claimId !== params.cleanupClaimId
+  ) {
+    return {
+      deviceCount: latestJob?.totalDeviceCount ?? job.totalDeviceCount,
+      completedCount: 0,
+      processingCount: 0,
+      failedCount: 0,
+      message: latestJob
+        ? formatAllSoraCamImageExportMessage(
+          latestJob.totalDeviceCount,
+          0,
+          0,
+          0,
+          0,
+        )
+        : t("soracom.messages.soracam_no_devices"),
+    };
+  }
+
   await deleteAllSoraCamImageExportTasksByJob(params.client, params.jobKey);
   await deleteAllSoraCamImageExportJob(params.client, params.channelId);
 
