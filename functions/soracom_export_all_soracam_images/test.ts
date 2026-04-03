@@ -15,6 +15,7 @@ import type {
   SoraCamImageExport,
 } from "../../lib/soracom/mod.ts";
 import {
+  ALL_SORACAM_EXPORT_CLEANUP_TASK_KEY,
   ALL_SORACAM_EXPORT_PARALLELISM,
   ALL_SORACAM_EXPORT_STALE_UNSTARTED_TASK_MS,
   ALL_SORACAM_EXPORT_TRIGGER_DELAY_MS,
@@ -49,6 +50,14 @@ function stubImmediateTimeout() {
 
 function createExportAllClient(options?: {
   triggerDeleteErrors?: Record<string, string>;
+  beforeDatastoreGet?: (
+    params: { datastore: string; id: string },
+    datastores: Record<string, Record<string, Record<string, unknown>>>,
+  ) => void;
+  beforeDatastoreDelete?: (
+    params: { datastore: string; id: string },
+    datastores: Record<string, Record<string, Record<string, unknown>>>,
+  ) => void;
 }) {
   const posts: Array<{ channel: string; text: string }> = [];
   const updates: Array<{ channel: string; ts: string; text: string }> = [];
@@ -111,6 +120,7 @@ function createExportAllClient(options?: {
     apps: {
       datastore: {
         get(params: { datastore: string; id: string }) {
+          options?.beforeDatastoreGet?.(params, datastores);
           return Promise.resolve({
             ok: true,
             item: ensureDatastore(params.datastore)[params.id],
@@ -129,6 +139,7 @@ function createExportAllClient(options?: {
           });
         },
         delete(params: { datastore: string; id: string }) {
+          options?.beforeDatastoreDelete?.(params, datastores);
           delete ensureDatastore(params.datastore)[params.id];
           return Promise.resolve({ ok: true });
         },
@@ -842,19 +853,20 @@ Deno.test("子 run は再試行上限到達後に failed と詳細を残す", as
     now: 1700000415000,
   });
 
-  const cam1 = await getAllSoraCamImageExportTask(
-    client as never,
-    "C123:cam-1",
-  );
-
   assertEquals(exportCalls, ["cam-1", "cam-1", "cam-1"]);
-  assertEquals(triggerCreates.length, 3);
+  assertEquals(triggerCreates.length, 4);
   assertEquals(triggerDeletes, ["Ft1", "Ft2", "Ft3"]);
   assertEquals(result.completedCount, 0);
   assertEquals(result.processingCount, 0);
   assertEquals(result.failedCount, 1);
-  assertEquals(cam1?.status, "failed");
-  assertEquals(cam1?.retryCount, 2);
+  assertEquals(
+    (await getAllSoraCamImageExportJob(client as never, "C123"))?.status,
+    "completed",
+  );
+  assertEquals(
+    (await getAllSoraCamImageExportTask(client as never, "C123:cam-1"))?.status,
+    "failed",
+  );
   assertEquals(
     updates.at(-1)?.text.includes("Camera 1 (cam-1)"),
     true,
@@ -899,22 +911,19 @@ Deno.test("録画がない台は再試行せず failed にする", async () => {
     now: 1700000405000,
   });
 
-  const cam1 = await getAllSoraCamImageExportTask(
-    client as never,
-    "C123:cam-1",
-  );
-
   assertEquals(listRecordingCalls, ["cam-1"]);
   assertEquals(exportCalls, []);
-  assertEquals(triggerCreates.length, 1);
+  assertEquals(triggerCreates.length, 2);
   assertEquals(triggerDeletes, ["Ft1"]);
   assertEquals(result.failedCount, 1);
   assertEquals(result.processingCount, 0);
-  assertEquals(cam1?.status, "failed");
-  assertEquals(cam1?.retryCount, 0);
   assertEquals(
-    cam1?.errorMessage,
-    "デバイス cam-1 の最近の録画が見つかりません",
+    (await getAllSoraCamImageExportJob(client as never, "C123"))?.status,
+    "completed",
+  );
+  assertEquals(
+    (await getAllSoraCamImageExportTask(client as never, "C123:cam-1"))?.status,
+    "failed",
   );
 });
 
@@ -1133,5 +1142,285 @@ Deno.test("対象デバイスが0台のときはジョブを作らずメッセ�
   assertEquals(
     await getAllSoraCamImageExportJob(client as never, "C123"),
     null,
+  );
+});
+
+Deno.test("全台処理が完了したら cleanup trigger を作成し cleanup run で Datastore を掃除する", async () => {
+  await prepareLocale("ja");
+
+  const fetchStub = stub(
+    globalThis,
+    "fetch",
+    (input: string | URL | Request) => {
+      const url = typeof input === "string"
+        ? input
+        : input instanceof URL
+        ? input.toString()
+        : input.url;
+
+      if (url === "https://upload.local/files") {
+        return Promise.resolve(new Response(null, { status: 200 }));
+      }
+
+      if (url.startsWith("https://image.local/")) {
+        return Promise.resolve(
+          new Response(new Uint8Array([1, 2, 3]), { status: 200 }),
+        );
+      }
+
+      throw new Error(`unexpected fetch: ${url}`);
+    },
+  );
+
+  try {
+    const devices = createDevices(1);
+    const { client, triggerCreates } = createExportAllClient();
+    const { soracomClient } = createSoracomClientMock({
+      devices,
+      initialExports: {
+        "cam-1": buildExportResult(
+          "cam-1",
+          "completed",
+          "exp-cam-1",
+          "https://image.local/cam-1.jpg",
+        ),
+      },
+    });
+
+    await processAllSoraCamImageExport({
+      soracomClient,
+      client: client as never,
+      channelId: "C123",
+      now: 1700000400000,
+    });
+
+    const result = await processAllSoraCamImageExport({
+      soracomClient,
+      client: client as never,
+      channelId: "C123",
+      jobKey: "C123",
+      taskKey: buildAllSoraCamImageExportTaskKey("C123", "cam-1"),
+      now: 1700000405000,
+    });
+
+    assertEquals(result.completedCount, 1);
+    assertEquals(result.processingCount, 0);
+    assertEquals(result.failedCount, 0);
+    assertEquals(triggerCreates.length, 2);
+    assertEquals(
+      triggerCreates[1]?.inputs,
+      {
+        channel_id: { value: "C123" },
+        job_key: { value: "C123" },
+        task_key: { value: ALL_SORACAM_EXPORT_CLEANUP_TASK_KEY },
+        cleanup_claim_id: {
+          value: (await getAllSoraCamImageExportJob(client as never, "C123"))
+            ?.claimId,
+        },
+      },
+    );
+    assertEquals(
+      (await getAllSoraCamImageExportJob(client as never, "C123"))?.status,
+      "completed",
+    );
+    assertEquals(
+      (await getAllSoraCamImageExportTask(client as never, "C123:cam-1"))
+        ?.status,
+      "uploaded",
+    );
+
+    const cleanupClaimId = (
+      await getAllSoraCamImageExportJob(client as never, "C123")
+    )?.claimId;
+
+    const cleanupResult = await processAllSoraCamImageExport({
+      soracomClient,
+      client: client as never,
+      channelId: "C123",
+      jobKey: "C123",
+      taskKey: ALL_SORACAM_EXPORT_CLEANUP_TASK_KEY,
+      cleanupClaimId,
+      now: 1700000465000,
+    });
+
+    assertEquals(cleanupResult.completedCount, 1);
+    assertEquals(cleanupResult.processingCount, 0);
+    assertEquals(cleanupResult.failedCount, 0);
+    assertEquals(
+      await getAllSoraCamImageExportJob(client as never, "C123"),
+      null,
+    );
+    assertEquals(
+      await listAllSoraCamImageExportTasks(client as never, "C123"),
+      [],
+    );
+  } finally {
+    fetchStub.restore();
+  }
+});
+
+Deno.test("古い cleanup claim の run は新しいジョブを削除しない", async () => {
+  await prepareLocale("ja");
+
+  const devices = createDevices(1);
+  const { client } = createExportAllClient();
+  const timestamp = new Date(1700000405000).toISOString();
+
+  client.apps.datastore.put({
+    datastore: "soracom_all_soracam_image_export_jobs",
+    item: {
+      job_key: "C123",
+      channel_id: "C123",
+      message_ts: "1742281200.000100",
+      total_device_count: 1,
+      claim_id: "new-claim",
+      status: "pending",
+      created_at: timestamp,
+      updated_at: timestamp,
+    },
+  });
+  client.apps.datastore.put({
+    datastore: "soracom_all_soracam_image_export_tasks",
+    item: {
+      task_key: "C123:cam-1",
+      job_key: "C123",
+      channel_id: "C123",
+      device_id: devices[0].deviceId,
+      device_name: devices[0].name,
+      sort_index: 0,
+      export_id: "",
+      status: "queued",
+      image_url: "",
+      retry_count: 0,
+      created_at: timestamp,
+      updated_at: timestamp,
+    },
+  });
+
+  const { soracomClient } = createSoracomClientMock({ devices });
+  const result = await processAllSoraCamImageExport({
+    soracomClient,
+    client: client as never,
+    channelId: "C123",
+    jobKey: "C123",
+    taskKey: ALL_SORACAM_EXPORT_CLEANUP_TASK_KEY,
+    cleanupClaimId: "old-claim",
+    now: 1700000465000,
+  });
+
+  assertEquals(result.deviceCount, 1);
+  assertEquals(
+    (await getAllSoraCamImageExportJob(client as never, "C123"))?.status,
+    "pending",
+  );
+  assertEquals(
+    (await getAllSoraCamImageExportTask(client as never, "C123:cam-1"))?.status,
+    "queued",
+  );
+});
+
+Deno.test("cleanup 開始後に job ownership が変わった場合は削除を中止する", async () => {
+  await prepareLocale("ja");
+
+  const devices = createDevices(1);
+  const timestamp = new Date(1700000405000).toISOString();
+  let jobGetCalls = 0;
+  const { client } = createExportAllClient({
+    beforeDatastoreGet: (params, datastores) => {
+      if (
+        params.datastore !== "soracom_all_soracam_image_export_jobs" ||
+        params.id !== "C123"
+      ) {
+        return;
+      }
+      jobGetCalls += 1;
+      if (jobGetCalls !== 2) {
+        return;
+      }
+      datastores.soracom_all_soracam_image_export_jobs = {
+        C123: {
+          job_key: "C123",
+          channel_id: "C123",
+          message_ts: "1742281200.000100",
+          total_device_count: 1,
+          claim_id: "new-claim",
+          status: "pending",
+          created_at: timestamp,
+          updated_at: timestamp,
+        },
+      };
+      datastores.soracom_all_soracam_image_export_tasks = {
+        "C123:cam-1": {
+          task_key: "C123:cam-1",
+          job_key: "C123",
+          channel_id: "C123",
+          device_id: devices[0].deviceId,
+          device_name: devices[0].name,
+          sort_index: 0,
+          export_id: "",
+          status: "queued",
+          image_url: "",
+          retry_count: 0,
+          created_at: timestamp,
+          updated_at: timestamp,
+        },
+      };
+    },
+  });
+
+  await client.apps.datastore.put({
+    datastore: "soracom_all_soracam_image_export_jobs",
+    item: {
+      job_key: "C123",
+      channel_id: "C123",
+      message_ts: "1742281200.000100",
+      total_device_count: 1,
+      claim_id: "old-claim",
+      status: "completed",
+      created_at: timestamp,
+      updated_at: timestamp,
+    },
+  });
+  await client.apps.datastore.put({
+    datastore: "soracom_all_soracam_image_export_tasks",
+    item: {
+      task_key: "C123:cam-1",
+      job_key: "C123",
+      channel_id: "C123",
+      device_id: devices[0].deviceId,
+      device_name: devices[0].name,
+      sort_index: 0,
+      export_id: "exp-cam-1",
+      status: "uploaded",
+      image_url: "https://image.local/cam-1.jpg",
+      retry_count: 0,
+      created_at: timestamp,
+      updated_at: timestamp,
+    },
+  });
+
+  const { soracomClient } = createSoracomClientMock({ devices });
+  const result = await processAllSoraCamImageExport({
+    soracomClient,
+    client: client as never,
+    channelId: "C123",
+    jobKey: "C123",
+    taskKey: ALL_SORACAM_EXPORT_CLEANUP_TASK_KEY,
+    cleanupClaimId: "old-claim",
+    now: 1700000465000,
+  });
+
+  assertEquals(result.deviceCount, 1);
+  assertEquals(
+    (await getAllSoraCamImageExportJob(client as never, "C123"))?.claimId,
+    "new-claim",
+  );
+  assertEquals(
+    (await getAllSoraCamImageExportJob(client as never, "C123"))?.status,
+    "pending",
+  );
+  assertEquals(
+    (await getAllSoraCamImageExportTask(client as never, "C123:cam-1"))?.status,
+    "queued",
   );
 });

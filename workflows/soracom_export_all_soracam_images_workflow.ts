@@ -25,6 +25,10 @@ const SoracomExportAllSoraCamImagesWorkflow = DefineWorkflow({
         type: Schema.types.string,
         description: "内部用タスクキー",
       },
+      cleanup_claim_id: {
+        type: Schema.types.string,
+        description: "内部用 cleanup claim ID",
+      },
     },
     required: ["channel_id"],
   },
@@ -36,6 +40,8 @@ SoracomExportAllSoraCamImagesWorkflow.addStep(
     channel_id: SoracomExportAllSoraCamImagesWorkflow.inputs.channel_id,
     job_key: SoracomExportAllSoraCamImagesWorkflow.inputs.job_key,
     task_key: SoracomExportAllSoraCamImagesWorkflow.inputs.task_key,
+    cleanup_claim_id:
+      SoracomExportAllSoraCamImagesWorkflow.inputs.cleanup_claim_id,
   },
 );
 

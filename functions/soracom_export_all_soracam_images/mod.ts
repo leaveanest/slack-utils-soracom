@@ -45,6 +45,8 @@ export const ALL_SORACAM_EXPORT_TASK_RETRY_DELAY_MS = 3_000;
 export const ALL_SORACAM_EXPORT_STALE_UNSTARTED_TASK_MS = 60_000;
 export const ALL_SORACAM_EXPORT_MAX_TASK_RETRIES = 2;
 export const ALL_SORACAM_EXPORT_FAILED_DETAIL_LIMIT = 3;
+export const ALL_SORACAM_EXPORT_CLEANUP_DELAY_MS = 60_000;
+export const ALL_SORACAM_EXPORT_CLEANUP_TASK_KEY = "__cleanup__";
 
 const ALL_SORACAM_EXPORT_WORKFLOW_PATH =
   "#/workflows/soracom_export_all_soracam_images_workflow";
@@ -77,6 +79,10 @@ export const SoracomExportAllSoraCamImagesFunctionDefinition = DefineFunction({
       task_key: {
         type: Schema.types.string,
         description: "内部用タスクキー",
+      },
+      cleanup_claim_id: {
+        type: Schema.types.string,
+        description: "内部用 cleanup claim ID",
       },
     },
     required: ["channel_id"],
@@ -632,6 +638,34 @@ async function tryClaimAllSoraCamImageExportJobCreation(
   };
 }
 
+async function tryClaimAllSoraCamImageExportCompletion(
+  client: AllSoraCamImageExportClient,
+  job: SoracomAllSoraCamImageExportJob,
+  now: number,
+  delayFn: DelayFn,
+): Promise<SoracomAllSoraCamImageExportJob | null> {
+  const claimId = crypto.randomUUID();
+  await upsertAllSoraCamImageExportJob(
+    client,
+    {
+      ...withJobStatus(job, "completed", now),
+      claimId,
+    },
+  );
+  await delayFn(ALL_SORACAM_EXPORT_JOB_CLAIM_SETTLE_MS);
+
+  const latestJob = await getAllSoraCamImageExportJob(client, job.channelId);
+  if (
+    latestJob?.jobKey === job.jobKey &&
+    latestJob.status === "completed" &&
+    latestJob.claimId === claimId
+  ) {
+    return latestJob;
+  }
+
+  return null;
+}
+
 function getPostedMessageTs(
   response: { ts?: string; message?: { ts?: string } },
 ): string | null {
@@ -748,6 +782,41 @@ async function scheduleAllSoraCamImageExportTaskRun(
   }
 
   return response.trigger.id;
+}
+
+async function scheduleAllSoraCamImageExportCleanupRun(
+  client: AllSoraCamImageExportClient,
+  channelId: string,
+  jobKey: string,
+  cleanupClaimId: string,
+  now: number,
+  delayMs = ALL_SORACAM_EXPORT_CLEANUP_DELAY_MS,
+): Promise<void> {
+  const response = await client.workflows.triggers.create({
+    type: TriggerTypes.Scheduled,
+    name: t("soracom.messages.soracam_all_image_exports_trigger_name"),
+    workflow: ALL_SORACAM_EXPORT_WORKFLOW_PATH,
+    schedule: {
+      start_time: buildScheduledTriggerStartTime(now, delayMs),
+      frequency: {
+        type: "once",
+      },
+    },
+    inputs: {
+      channel_id: { value: channelId },
+      job_key: { value: jobKey },
+      task_key: { value: ALL_SORACAM_EXPORT_CLEANUP_TASK_KEY },
+      cleanup_claim_id: { value: cleanupClaimId },
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      t("errors.api_call_failed", {
+        error: response.error ?? "workflows.triggers.create_failed",
+      }),
+    );
+  }
 }
 
 async function deleteAllSoraCamImageExportContinuationTrigger(
@@ -1087,15 +1156,76 @@ async function refreshAllSoraCamImageExportProgress(params: {
   client: AllSoraCamImageExportClient;
   job: SoracomAllSoraCamImageExportJob;
   now: number;
+  delayFn: DelayFn;
 }): Promise<AllSoraCamImageExportResult> {
+  const latestJob = await getAllSoraCamImageExportJob(
+    params.client,
+    params.job.channelId,
+  );
+  if (!latestJob || latestJob.jobKey !== params.job.jobKey) {
+    return {
+      deviceCount: params.job.totalDeviceCount,
+      completedCount: 0,
+      processingCount: 0,
+      failedCount: 0,
+      message: t("soracom.messages.soracam_no_devices"),
+    };
+  }
+
+  if (latestJob.status === "completed" && params.job.status !== "completed") {
+    return {
+      deviceCount: latestJob.totalDeviceCount,
+      completedCount: 0,
+      processingCount: 0,
+      failedCount: 0,
+      message: formatAllSoraCamImageExportMessage(
+        latestJob.totalDeviceCount,
+        0,
+        0,
+        0,
+        0,
+      ),
+    };
+  }
+
   const tasks = await listAllSoraCamImageExportTasks(
     params.client,
-    params.job.jobKey,
+    latestJob.jobKey,
   );
   const summary = summarizeAllSoraCamImageExportTasks(tasks);
   const nextStatus = summary.remaining === 0 ? "completed" : "pending";
-  const nextJob = withJobStatus(params.job, nextStatus, params.now);
-  await upsertAllSoraCamImageExportJob(params.client, nextJob);
+  let nextJob: SoracomAllSoraCamImageExportJob;
+
+  if (nextStatus === "completed") {
+    const claimedJob = await tryClaimAllSoraCamImageExportCompletion(
+      params.client,
+      latestJob,
+      params.now,
+      params.delayFn,
+    );
+
+    if (!claimedJob) {
+      return {
+        deviceCount: latestJob.totalDeviceCount,
+        completedCount: summary.uploaded,
+        processingCount: summary.processing,
+        failedCount: summary.failed,
+        message: formatAllSoraCamImageExportMessage(
+          latestJob.totalDeviceCount,
+          summary.uploaded,
+          summary.processing,
+          summary.failed,
+          summary.remaining,
+          buildFailedTaskDetails(tasks),
+        ),
+      };
+    }
+
+    nextJob = claimedJob;
+  } else {
+    nextJob = withJobStatus(latestJob, nextStatus, params.now);
+    await upsertAllSoraCamImageExportJob(params.client, nextJob);
+  }
 
   const message = formatAllSoraCamImageExportMessage(
     nextJob.totalDeviceCount,
@@ -1116,6 +1246,16 @@ async function refreshAllSoraCamImageExportProgress(params: {
       t("errors.api_call_failed", {
         error: response.error ?? "chat.update_failed",
       }),
+    );
+  }
+
+  if (nextStatus === "completed" && nextJob.claimId) {
+    await scheduleAllSoraCamImageExportCleanupRun(
+      params.client,
+      nextJob.channelId,
+      nextJob.jobKey,
+      nextJob.claimId,
+      params.now,
     );
   }
 
@@ -1179,6 +1319,7 @@ async function processAllSoraCamImageExportWorker(params: {
       client: params.client,
       job,
       now: params.now,
+      delayFn: params.delayFn,
     });
   }
 
@@ -1219,7 +1360,98 @@ async function processAllSoraCamImageExportWorker(params: {
     client: params.client,
     job,
     now: params.now,
+    delayFn: params.delayFn,
   });
+}
+
+async function cleanupCompletedAllSoraCamImageExport(params: {
+  client: AllSoraCamImageExportClient;
+  channelId: string;
+  jobKey: string;
+  cleanupClaimId?: string;
+}): Promise<AllSoraCamImageExportResult> {
+  const job = await getAllSoraCamImageExportJob(
+    params.client,
+    params.channelId,
+  );
+  if (
+    !job ||
+    job.jobKey !== params.jobKey ||
+    job.status !== "completed" ||
+    job.claimId !== params.cleanupClaimId
+  ) {
+    return {
+      deviceCount: job?.totalDeviceCount ?? 0,
+      completedCount: 0,
+      processingCount: 0,
+      failedCount: 0,
+      message: job
+        ? formatAllSoraCamImageExportMessage(job.totalDeviceCount, 0, 0, 0, 0)
+        : t("soracom.messages.soracam_no_devices"),
+    };
+  }
+
+  const tasks = await listAllSoraCamImageExportTasks(
+    params.client,
+    params.jobKey,
+  );
+  const summary = summarizeAllSoraCamImageExportTasks(tasks);
+  const message = formatAllSoraCamImageExportMessage(
+    job.totalDeviceCount,
+    summary.uploaded,
+    summary.processing,
+    summary.failed,
+    summary.remaining,
+    buildFailedTaskDetails(tasks),
+  );
+
+  if (summary.remaining > 0) {
+    return {
+      deviceCount: job.totalDeviceCount,
+      completedCount: summary.uploaded,
+      processingCount: summary.processing,
+      failedCount: summary.failed,
+      message,
+    };
+  }
+
+  const latestJob = await getAllSoraCamImageExportJob(
+    params.client,
+    params.channelId,
+  );
+  if (
+    !latestJob ||
+    latestJob.jobKey !== params.jobKey ||
+    latestJob.status !== "completed" ||
+    latestJob.claimId !== params.cleanupClaimId
+  ) {
+    return {
+      deviceCount: latestJob?.totalDeviceCount ?? job.totalDeviceCount,
+      completedCount: 0,
+      processingCount: 0,
+      failedCount: 0,
+      message: latestJob
+        ? formatAllSoraCamImageExportMessage(
+          latestJob.totalDeviceCount,
+          0,
+          0,
+          0,
+          0,
+        )
+        : t("soracom.messages.soracam_no_devices"),
+    };
+  }
+
+  await deleteAllSoraCamImageExportTasksByJob(params.client, params.jobKey);
+  await deleteAllSoraCamImageExportJob(params.client, params.channelId);
+
+  return {
+    deviceCount: job.totalDeviceCount,
+    completedCount: summary.uploaded,
+    processingCount: summary.processing,
+    failedCount: summary.failed,
+    message,
+  };
 }
 
 /**
@@ -1240,6 +1472,7 @@ export async function processAllSoraCamImageExport(params: {
   channelId: string;
   jobKey?: string;
   taskKey?: string;
+  cleanupClaimId?: string;
   now?: number;
   nowFn?: () => number;
   delayFn?: DelayFn;
@@ -1247,6 +1480,18 @@ export async function processAllSoraCamImageExport(params: {
   const nowFn = params.nowFn ?? (() => params.now ?? Date.now());
   const delayFn = params.delayFn ?? sleep;
   const now = params.now ?? nowFn();
+
+  if (
+    params.jobKey &&
+    params.taskKey === ALL_SORACAM_EXPORT_CLEANUP_TASK_KEY
+  ) {
+    return await cleanupCompletedAllSoraCamImageExport({
+      client: params.client,
+      channelId: params.channelId,
+      jobKey: params.jobKey,
+      cleanupClaimId: params.cleanupClaimId,
+    });
+  }
 
   if (params.jobKey && params.taskKey) {
     return await processAllSoraCamImageExportWorker({
@@ -1338,6 +1583,7 @@ export async function processAllSoraCamImageExport(params: {
     client: params.client,
     job,
     now,
+    delayFn,
   });
 }
 
@@ -1355,6 +1601,7 @@ export default SlackFunction(
         channelId: inputs.channel_id,
         jobKey: inputs.job_key,
         taskKey: inputs.task_key,
+        cleanupClaimId: inputs.cleanup_claim_id,
       });
 
       return {
