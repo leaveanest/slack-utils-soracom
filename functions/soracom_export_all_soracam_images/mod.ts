@@ -33,10 +33,12 @@ import type {
   SoracomClient,
 } from "../../lib/soracom/mod.ts";
 
-export const ALL_SORACAM_EXPORT_PARALLELISM = 5;
-// Deployed custom functions have a 60s timeout, so the fan-out path should not
-// inherit the conservative trigger delay chosen for `slack run`.
-export const ALL_SORACAM_EXPORT_TRIGGER_DELAY_MS = 1_000;
+// Slack channel writes are effectively paced per conversation, so all-device
+// snapshot uploads should advance one camera at a time.
+export const ALL_SORACAM_EXPORT_PARALLELISM = 1;
+// Keep the next-device continuation close enough for practical throughput while
+// leaving breathing room between channel write events.
+export const ALL_SORACAM_EXPORT_TRIGGER_DELAY_MS = 1_500;
 export const ALL_SORACAM_EXPORT_JOB_CLAIM_SETTLE_MS = 750;
 export const ALL_SORACAM_EXPORT_TASK_CLAIM_SETTLE_MS = 750;
 export const ALL_SORACAM_EXPORT_CREATION_WAIT_RETRIES = 20;
@@ -51,6 +53,8 @@ export const ALL_SORACAM_EXPORT_CLEANUP_TASK_KEY = "__cleanup__";
 const ALL_SORACAM_EXPORT_WORKFLOW_PATH =
   "#/workflows/soracom_export_all_soracam_images_workflow";
 const ALL_SORACAM_EXPORT_PENDING_MESSAGE_TS = "__pending__";
+
+type AllSoraCamImageExportRunMode = "parent" | "worker" | "cleanup";
 
 /**
  * 全ソラカメ画像スナップショット結果
@@ -214,6 +218,24 @@ type FailedAllSoraCamImageExportTaskDetail = {
   deviceName: string;
   errorMessage: string;
 };
+
+function resolveAllSoraCamImageExportRunMode(params: {
+  jobKey?: string;
+  taskKey?: string;
+}): AllSoraCamImageExportRunMode {
+  if (
+    params.jobKey &&
+    params.taskKey === ALL_SORACAM_EXPORT_CLEANUP_TASK_KEY
+  ) {
+    return "cleanup";
+  }
+
+  if (params.jobKey && params.taskKey) {
+    return "worker";
+  }
+
+  return "parent";
+}
 
 /**
  * エクスポート結果件数を状態ごとに集計します。
@@ -435,6 +457,19 @@ function isStaleUnstartedAllSoraCamImageExportTask(
   now: number,
 ): boolean {
   if (task.status !== "processing" || task.exportId.length > 0) {
+    return false;
+  }
+
+  const updatedAt = Date.parse(task.updatedAt);
+  return Number.isFinite(updatedAt) &&
+    now - updatedAt >= ALL_SORACAM_EXPORT_STALE_UNSTARTED_TASK_MS;
+}
+
+function isStaleProcessingAllSoraCamImageExportTask(
+  task: SoracomAllSoraCamImageExportTask,
+  now: number,
+): boolean {
+  if (task.status !== "processing") {
     return false;
   }
 
@@ -916,7 +951,12 @@ async function claimNextQueuedAllSoraCamImageExportTask(
   now: number,
   delayFn: DelayFn,
 ): Promise<SoracomAllSoraCamImageExportTask | null> {
-  const tasks = await listAllSoraCamImageExportTasks(client, jobKey);
+  const tasks = (await listAllSoraCamImageExportTasks(client, jobKey))
+    .sort((left, right) =>
+      (left.retryCount ?? 0) - (right.retryCount ?? 0) ||
+      left.sortIndex - right.sortIndex ||
+      left.deviceId.localeCompare(right.deviceId)
+    );
 
   for (const task of tasks) {
     const claimedTask = await claimAllSoraCamImageExportTask(
@@ -945,7 +985,7 @@ async function fillAllSoraCamImageExportFanoutWindow(params: {
   );
 
   for (const task of tasks) {
-    if (!isStaleUnstartedAllSoraCamImageExportTask(task, params.now)) {
+    if (!isStaleProcessingAllSoraCamImageExportTask(task, params.now)) {
       continue;
     }
 
@@ -954,9 +994,22 @@ async function fillAllSoraCamImageExportFanoutWindow(params: {
       task,
       now: params.now,
     });
-    await upsertAllSoraCamImageExportTask(params.client, {
-      ...withoutClaim(clearedTask, params.now),
-      status: "queued",
+
+    if (isStaleUnstartedAllSoraCamImageExportTask(clearedTask, params.now)) {
+      await upsertAllSoraCamImageExportTask(params.client, {
+        ...withoutClaim(clearedTask, params.now),
+        status: "queued",
+      });
+      continue;
+    }
+
+    await scheduleTaskContinuation({
+      client: params.client,
+      task: {
+        ...withoutClaim(clearedTask, params.now),
+        status: "processing",
+      },
+      now: params.now,
     });
   }
 
@@ -1591,8 +1644,21 @@ export default SlackFunction(
   SoracomExportAllSoraCamImagesFunctionDefinition,
   async ({ inputs, client, env }) => {
     try {
+      const runMode = resolveAllSoraCamImageExportRunMode({
+        jobKey: inputs.job_key,
+        taskKey: inputs.task_key,
+      });
+
       console.log(t("soracom.logs.exporting_all_soracam_images"));
       console.log(t("soracom.logs.fetching_soracam_recordings"));
+      console.log(
+        t("soracom.logs.soracam_all_image_exports_run_mode", {
+          mode: runMode,
+          channelId: inputs.channel_id,
+          jobKey: inputs.job_key ?? "-",
+          taskKey: inputs.task_key ?? "-",
+        }),
+      );
 
       const soracomClient = createSoracomClientFromEnv(env);
       const result = await processAllSoraCamImageExport({
@@ -1603,6 +1669,21 @@ export default SlackFunction(
         taskKey: inputs.task_key,
         cleanupClaimId: inputs.cleanup_claim_id,
       });
+
+      console.log(
+        t("soracom.logs.soracam_all_image_exports_result_summary", {
+          mode: runMode,
+          deviceCount: result.deviceCount,
+          completed: result.completedCount,
+          processing: result.processingCount,
+          failed: result.failedCount,
+        }),
+      );
+      console.log(
+        result.processingCount > 0
+          ? t("soracom.logs.soracam_all_image_exports_continuing")
+          : t("soracom.logs.soracam_all_image_exports_finished"),
+      );
 
       return {
         outputs: {
