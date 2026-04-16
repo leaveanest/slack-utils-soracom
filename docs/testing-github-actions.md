@@ -515,7 +515,7 @@ act issues --eventpath event.json
 ### GitHub UI
 
 ```
-https://github.com/leaveanest/slack-utils-iot/actions
+https://github.com/leaveanest/slack-utils-soracom/actions
 ```
 
 ### GitHub CLI

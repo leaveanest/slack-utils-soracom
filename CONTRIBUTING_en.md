@@ -1,4 +1,4 @@
-# Contributing to slack-utils-iot
+# Contributing to slack-utils-soracom
 
 > **Japanese version / 日本語版: [CONTRIBUTING.md](CONTRIBUTING.md)**
 
