@@ -84,8 +84,8 @@ GPSマルチユニットレポート / ジオフェンス確認では、Harvest 
 ## 1. リポジトリを準備する
 
 ```bash
-git clone https://github.com/leaveanest/slack-utils-iot.git
-cd slack-utils-iot
+git clone https://github.com/leaveanest/slack-utils-soracom.git
+cd slack-utils-soracom
 
 cp .env.example .env
 ```
