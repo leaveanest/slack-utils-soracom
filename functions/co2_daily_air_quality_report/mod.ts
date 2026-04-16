@@ -47,6 +47,7 @@ interface Co2DailyAirQualityReportChatClient {
       channel: string;
       text: string;
       blocks?: Array<Record<string, unknown>>;
+      thread_ts?: string;
     }) => Promise<{
       ok: boolean;
       error?: string;
@@ -165,7 +166,7 @@ export const Co2DailyAirQualityReportFunctionDefinition = DefineFunction({
 });
 
 /**
- * 空気品質レポートの Slack メッセージを生成します。
+ * 空気品質レポートの親投稿メッセージを生成します。
  *
  * @param sensorName - センサー表示名
  * @param imsi - IMSI
@@ -224,16 +225,21 @@ export function formatCo2DailyAirQualityReportMessage(
         formatMetricSummaryBlock(
           t("soracom.messages.air_quality_metric_co2"),
           summary.co2,
+          ["latest"],
         ),
         formatMetricSummaryBlock(
           t("soracom.messages.air_quality_metric_temperature"),
           summary.temperature,
+          ["latest"],
         ),
         formatMetricSummaryBlock(
           t("soracom.messages.air_quality_metric_humidity"),
           summary.humidity,
+          ["latest"],
         ),
-        formatDiscomfortIndexSummaryBlock(summary.discomfortIndex ?? {}),
+        formatDiscomfortIndexSummaryBlock(summary.discomfortIndex ?? {}, [
+          "latest",
+        ]),
       ]).join("\n\n"),
     ].join("\n"),
   ].filter((section): section is string =>
@@ -241,6 +247,46 @@ export function formatCo2DailyAirQualityReportMessage(
   );
 
   return sections.join("\n\n");
+}
+
+/**
+ * 空気品質レポートのスレッド返信メッセージを生成します。
+ *
+ * @param summary - 集計済み空気品質サマリー
+ * @returns フォーマット済みメッセージ。空データ時は `null`
+ */
+export function formatCo2DailyAirQualityReportThreadMessage(
+  summary: AirQualitySummary,
+): string | null {
+  if (summary.sampleCount === 0) {
+    return null;
+  }
+
+  return [
+    `*${t("soracom.messages.air_quality_report_section_metrics")}*`,
+    toBulletLines([
+      formatMetricSummaryBlock(
+        t("soracom.messages.air_quality_metric_co2"),
+        summary.co2,
+        ["average", "min", "max"],
+      ),
+      formatMetricSummaryBlock(
+        t("soracom.messages.air_quality_metric_temperature"),
+        summary.temperature,
+        ["average", "min", "max"],
+      ),
+      formatMetricSummaryBlock(
+        t("soracom.messages.air_quality_metric_humidity"),
+        summary.humidity,
+        ["average", "min", "max"],
+      ),
+      formatDiscomfortIndexSummaryBlock(summary.discomfortIndex ?? {}, [
+        "average",
+        "min",
+        "max",
+      ]),
+    ]).join("\n\n"),
+  ].join("\n");
 }
 
 export function maskImsiForDisplay(imsi: string): string {
@@ -258,17 +304,24 @@ export function maskImsiForDisplay(imsi: string): string {
  * @param summary - メトリクス要約
  * @returns フォーマット済み文字列
  */
+type AirQualityMetricSummaryField = "latest" | "average" | "min" | "max";
+
 function formatMetricSummaryBlock(
   label: string,
   summary: AirQualityMetricSummary,
+  fields: readonly AirQualityMetricSummaryField[] = [
+    "latest",
+    "average",
+    "min",
+    "max",
+  ],
   formatter: (value: number) => string = formatMetricNumber,
 ): string {
-  if (
-    summary.latest === undefined ||
-    summary.average === undefined ||
-    summary.min === undefined ||
-    summary.max === undefined
-  ) {
+  const lines = fields.map((field) =>
+    formatMetricSummaryLine(field, summary[field], formatter)
+  );
+
+  if (lines.some((line) => line === null)) {
     return [
       label,
       `  - ${t("soracom.messages.air_quality_metric_unavailable_short")}`,
@@ -277,69 +330,57 @@ function formatMetricSummaryBlock(
 
   return [
     label,
-    `  - ${
-      t("soracom.messages.air_quality_metric_latest", {
-        value: formatter(summary.latest),
-      })
-    }`,
-    `  - ${
-      t("soracom.messages.air_quality_metric_average", {
-        value: formatter(summary.average),
-      })
-    }`,
-    `  - ${
-      t("soracom.messages.air_quality_metric_min", {
-        value: formatter(summary.min),
-      })
-    }`,
-    `  - ${
-      t("soracom.messages.air_quality_metric_max", {
-        value: formatter(summary.max),
-      })
-    }`,
+    ...lines.filter((line): line is string => line !== null),
   ].join("\n");
 }
 
 function formatDiscomfortIndexSummaryBlock(
   summary: AirQualityMetricSummary,
+  fields: readonly AirQualityMetricSummaryField[] = [
+    "latest",
+    "average",
+    "min",
+    "max",
+  ],
 ): string {
   const label = t("soracom.messages.air_quality_metric_discomfort_index");
+  return formatMetricSummaryBlock(
+    label,
+    summary,
+    fields,
+    formatDiscomfortIndexNumber,
+  );
+}
 
-  if (
-    summary.latest === undefined ||
-    summary.average === undefined ||
-    summary.min === undefined ||
-    summary.max === undefined
-  ) {
-    return [
-      label,
-      `  - ${t("soracom.messages.air_quality_metric_unavailable_short")}`,
-    ].join("\n");
+function formatMetricSummaryLine(
+  field: AirQualityMetricSummaryField,
+  value: number | undefined,
+  formatter: (value: number) => string,
+): string | null {
+  if (value === undefined) {
+    return null;
   }
 
-  return [
-    label,
-    `  - ${
-      t("soracom.messages.air_quality_metric_latest", {
-        value: formatDiscomfortIndexNumber(summary.latest),
-      })
-    }`,
-    `  - ${
-      t("soracom.messages.air_quality_metric_average", {
-        value: formatDiscomfortIndexNumber(summary.average),
-      })
-    }`,
-    `  - ${
-      t("soracom.messages.air_quality_metric_min", {
-        value: formatDiscomfortIndexNumber(summary.min),
-      })
-    }`,
-    `  - ${
-      t("soracom.messages.air_quality_metric_max", {
-        value: formatDiscomfortIndexNumber(summary.max),
-      })
-    }`,
-  ].join("\n");
+  return `  - ${
+    t(resolveAirQualityMetricSummaryFieldKey(field), {
+      value: formatter(value),
+    })
+  }`;
+}
+
+function resolveAirQualityMetricSummaryFieldKey(
+  field: AirQualityMetricSummaryField,
+): string {
+  switch (field) {
+    case "latest":
+      return "soracom.messages.air_quality_metric_latest";
+    case "average":
+      return "soracom.messages.air_quality_metric_average";
+    case "min":
+      return "soracom.messages.air_quality_metric_min";
+    case "max":
+      return "soracom.messages.air_quality_metric_max";
+  }
 }
 
 function formatDiscomfortIndexSummaryCategoryLine(
@@ -633,11 +674,13 @@ async function postMarkdownMessage(
   client: Co2DailyAirQualityReportChatClient,
   channel: string,
   text: string,
+  threadTs?: string,
 ): Promise<string | undefined> {
   const response = await client.chat.postMessage({
     channel,
     text,
     blocks: buildMarkdownBlocks(text),
+    ...(threadTs ? { thread_ts: threadTs } : {}),
   });
 
   if (!response.ok) {
@@ -736,7 +779,10 @@ export default SlackFunction(
         );
       }
 
-      const generatedReports: string[] = [];
+      const generatedReports: Array<{
+        channelMessage: string;
+        threadMessage: string | null;
+      }> = [];
       let hasAnomaly = false;
       let failedCount = 0;
 
@@ -766,15 +812,18 @@ export default SlackFunction(
             ),
           );
           hasAnomaly = hasAnomaly || hasAirQualitySummaryAnomaly(summary);
-          const message = formatCo2DailyAirQualityReportMessage(
+          const channelMessage = formatCo2DailyAirQualityReportMessage(
             resolveCo2DailyAirQualitySensorName(sim),
             maskImsiForDisplay(imsi),
             period,
             summary,
             peakBucket,
           );
+          const threadMessage = formatCo2DailyAirQualityReportThreadMessage(
+            summary,
+          );
 
-          generatedReports.push(message);
+          generatedReports.push({ channelMessage, threadMessage });
         } catch (error) {
           failedCount += 1;
           const errorMessage = error instanceof Error
@@ -816,7 +865,25 @@ export default SlackFunction(
       let reportedCount = 0;
       for (const report of generatedReports) {
         try {
-          await postMarkdownMessage(chatClient, channelId, report);
+          const reportMessageTs = await postMarkdownMessage(
+            chatClient,
+            channelId,
+            report.channelMessage,
+          );
+
+          if (report.threadMessage) {
+            if (!reportMessageTs) {
+              throw new Error(t("errors.data_not_found"));
+            }
+
+            await postMarkdownMessage(
+              chatClient,
+              channelId,
+              report.threadMessage,
+              reportMessageTs,
+            );
+          }
+
           reportedCount += 1;
         } catch (error) {
           failedCount += 1;

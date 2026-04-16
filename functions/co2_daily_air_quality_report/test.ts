@@ -10,6 +10,7 @@ import {
   filterCo2DailyAirQualityReportSims,
   formatCo2DailyAirQualityReportMessage,
   formatCo2DailyAirQualityReportSummaryMessage,
+  formatCo2DailyAirQualityReportThreadMessage,
   hasAirQualitySummaryAnomaly,
   maskImsiForDisplay,
   resolveCo2DailyAirQualityReportCriteria,
@@ -116,7 +117,7 @@ const baseSim: SoracomSim = {
 };
 
 Deno.test({
-  name: "期間指定の空気品質レポートが正しくフォーマットされる",
+  name: "期間指定の空気品質レポート親投稿は最新値を中心にフォーマットされる",
   sanitizeResources: false,
   sanitizeOps: false,
   fn: async () => {
@@ -134,8 +135,8 @@ Deno.test({
     assertEquals(message.includes("***********7890"), true);
     assertEquals(message.includes("12"), true);
     assertEquals(message.includes("CO2"), true);
-    assertEquals(message.includes("1250"), true);
-    assertEquals(message.includes("23.5"), true);
+    assertEquals(message.includes("1250"), false);
+    assertEquals(message.includes("23.5"), false);
     assertEquals(message.includes("1275"), true);
     assertEquals(message.includes("1時間"), true);
     assertEquals(
@@ -161,23 +162,42 @@ Deno.test({
     assertEquals(message.split("\n")[0].endsWith("*"), false);
     assertEquals(message.includes("温度 (℃)"), true);
     assertEquals(message.includes("- CO2 (ppm)\n  - 最新: 950"), true);
-    assertEquals(message.includes("  - 平均: 910.4"), true);
     assertEquals(message.includes("- 温度 (℃)\n  - 最新: 24.2"), true);
     assertEquals(message.includes("- 不快指数\n  - 最新: 70.8"), true);
     assertEquals(message.includes("  - 区分: 暑くない"), false);
     assertEquals(message.includes("- 不快指数区分: 暑くない"), true);
-    assertEquals(message.includes("  - 平均: 69.7"), true);
-    assertEquals(
-      message.includes("  - 最大: 1250\n\n- 温度 (℃)\n  - 最新: 24.2"),
-      true,
-    );
-    assertEquals(message.includes("  - 最大: 25.4"), true);
+    assertEquals(message.includes("  - 平均: 910.4"), false);
+    assertEquals(message.includes("  - 最小: 700"), false);
+    assertEquals(message.includes("  - 最大: 1250"), false);
+    assertEquals(message.includes("  - 平均: 69.7"), false);
     assertEquals(message.includes("2026-03-16 10:00:00 JST"), true);
     assertEquals(
       message.includes("air_quality_temperature_violation_count") ||
         (message.includes("18") && message.includes("28")),
       true,
     );
+  },
+});
+
+Deno.test({
+  name: "空気品質レポートのスレッド返信は平均最小最大をフォーマットする",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    const message = formatCo2DailyAirQualityReportThreadMessage(
+      summaryWithData,
+    );
+
+    assertEquals(message === null, false);
+    assertEquals(message?.includes("*計測値*"), true);
+    assertEquals(message?.includes("- CO2 (ppm)\n  - 平均: 910.4"), true);
+    assertEquals(message?.includes("  - 最小: 700"), true);
+    assertEquals(message?.includes("  - 最大: 1250"), true);
+    assertEquals(message?.includes("- 温度 (℃)\n  - 平均: 23.5"), true);
+    assertEquals(message?.includes("- 不快指数\n  - 平均: 69.7"), true);
+    assertEquals(message?.includes("  - 最新: 950"), false);
   },
 });
 
@@ -283,6 +303,28 @@ Deno.test({
     assertEquals(message.includes("***********7890"), true);
     assertEquals(message.includes("1日"), true);
     assertEquals(message.length > 0, true);
+  },
+});
+
+Deno.test({
+  name: "データがない場合は空気品質レポートのスレッド返信を作らない",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    const message = formatCo2DailyAirQualityReportThreadMessage({
+      ...summaryWithData,
+      sampleCount: 0,
+      co2: {},
+      temperature: {},
+      humidity: {},
+      co2ThresholdExceededCount: 0,
+      temperatureOutOfRangeCount: 0,
+      humidityOutOfRangeCount: 0,
+    });
+
+    assertEquals(message, null);
   },
 });
 
