@@ -162,6 +162,8 @@ export interface SoracomAllSoraCamImageExportJob {
   totalDeviceCount: number;
   /** 初期化 claim ID */
   claimId?: string;
+  /** cleanup 実行用 trigger ID */
+  cleanupTriggerId?: string;
   /** 状態 */
   status: "starting" | "pending" | "completed";
   /** 作成日時 */

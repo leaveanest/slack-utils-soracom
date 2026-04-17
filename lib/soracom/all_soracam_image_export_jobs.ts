@@ -31,6 +31,7 @@ export type SoracomAllSoraCamImageExportJobInput = {
   messageTs: string;
   totalDeviceCount: number;
   claimId?: string;
+  cleanupTriggerId?: string;
   status: "starting" | "pending" | "completed";
   createdAt: string;
   updatedAt: string;
@@ -65,6 +66,9 @@ export async function upsertAllSoraCamImageExportJob(
       message_ts: job.messageTs,
       total_device_count: job.totalDeviceCount,
       ...(job.claimId ? { claim_id: job.claimId } : {}),
+      ...(job.cleanupTriggerId
+        ? { cleanup_trigger_id: job.cleanupTriggerId }
+        : {}),
       status: job.status,
       created_at: job.createdAt,
       updated_at: job.updatedAt,
@@ -136,6 +140,7 @@ function normalizeAllSoraCamImageExportJob(
   const messageTs = readNonEmptyString(item.message_ts);
   const totalDeviceCount = readNumber(item.total_device_count);
   const claimId = readOptionalNonEmptyString(item.claim_id);
+  const cleanupTriggerId = readOptionalNonEmptyString(item.cleanup_trigger_id);
   const createdAt = readNonEmptyString(item.created_at);
   const updatedAt = readNonEmptyString(item.updated_at);
   const status = readStatus(item.status);
@@ -158,6 +163,7 @@ function normalizeAllSoraCamImageExportJob(
     messageTs,
     totalDeviceCount,
     ...(claimId ? { claimId } : {}),
+    ...(cleanupTriggerId ? { cleanupTriggerId } : {}),
     status,
     createdAt,
     updatedAt,

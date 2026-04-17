@@ -29,6 +29,10 @@ const SoracomAllSoraCamImageExportJobsDatastore = DefineDatastore({
       type: Schema.types.string,
       description: "初期化 claim ID",
     },
+    cleanup_trigger_id: {
+      type: Schema.types.string,
+      description: "cleanup 実行用 trigger ID",
+    },
     status: {
       type: Schema.types.string,
       description: "ジョブ状態（starting/pending/completed）",

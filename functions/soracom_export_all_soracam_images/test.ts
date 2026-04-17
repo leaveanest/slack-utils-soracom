@@ -1288,7 +1288,7 @@ Deno.test("全台処理が完了したら cleanup trigger を作成し cleanup r
 
   try {
     const devices = createDevices(1);
-    const { client, triggerCreates } = createExportAllClient();
+    const { client, triggerCreates, triggerDeletes } = createExportAllClient();
     const { soracomClient } = createSoracomClientMock({
       devices,
       initialExports: {
@@ -1360,6 +1360,7 @@ Deno.test("全台処理が完了したら cleanup trigger を作成し cleanup r
     assertEquals(cleanupResult.completedCount, 1);
     assertEquals(cleanupResult.processingCount, 0);
     assertEquals(cleanupResult.failedCount, 0);
+    assertEquals(triggerDeletes, ["Ft1", "Ft2"]);
     assertEquals(
       await getAllSoraCamImageExportJob(client as never, "C123"),
       null,
