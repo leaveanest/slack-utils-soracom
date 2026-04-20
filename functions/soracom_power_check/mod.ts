@@ -3,6 +3,8 @@ import { formatLocalizedDateTime, t } from "../../lib/i18n/mod.ts";
 import type {
   PowerMetricKind,
   PowerSample,
+  PowerSampleResolution,
+  SoracomClient,
   SoracomSim,
 } from "../../lib/soracom/mod.ts";
 import {
@@ -16,10 +18,33 @@ import {
 } from "../../lib/validation/schemas.ts";
 
 const POWER_CHECK_LOOKBACK_MS = 24 * 60 * 60 * 1000;
+const POWER_CHECK_PAGE_SIZE = 1000;
 
 type PowerCheckSimResult =
   | { sim: SoracomSim; status: "ok"; sample: PowerSample }
   | { sim: SoracomSim; status: "no_data" | "invalid_data" | "failed" };
+
+type PowerCheckOutputs = {
+  processed_count: number;
+  reported_count: number;
+  no_data_count: number;
+  invalid_count: number;
+  failed_count: number;
+  message: string;
+};
+
+interface PowerCheckChatClient {
+  chat: {
+    postMessage: (params: {
+      channel: string;
+      text: string;
+    }) => Promise<{
+      ok: boolean;
+      error?: string;
+      ts?: string;
+    }>;
+  };
+}
 
 /**
  * 電力チェック関数定義
@@ -260,6 +285,190 @@ function formatPowerValue(value: number, kind: PowerMetricKind): string {
   return Number.isInteger(value) ? value.toFixed(0) : value.toFixed(2);
 }
 
+/**
+ * 1 SIM 分の最新電力系メトリクスを、最新ページから順にたどって解決します。
+ *
+ * @param soracomClient - SORACOM クライアント
+ * @param imsi - IMSI
+ * @param from - 検索開始時刻
+ * @param to - 検索終了時刻
+ * @returns 最新電力サンプル、またはデータ状態
+ */
+export async function findLatestPowerSampleForSim(
+  soracomClient: Pick<SoracomClient, "getHarvestDataPage">,
+  imsi: string,
+  from: number,
+  to: number,
+): Promise<PowerSampleResolution> {
+  let nextTo = to;
+  let sawInvalidData = false;
+
+  while (from <= nextTo) {
+    const batch = await soracomClient.getHarvestDataPage(
+      imsi,
+      from,
+      nextTo,
+      "desc",
+      POWER_CHECK_PAGE_SIZE,
+    );
+
+    if (batch.length === 0) {
+      break;
+    }
+
+    const resolution = resolveLatestPowerSample(batch);
+    if (resolution.status === "ok") {
+      return resolution;
+    }
+    if (resolution.status === "invalid_data") {
+      sawInvalidData = true;
+    }
+
+    if (batch.length < POWER_CHECK_PAGE_SIZE) {
+      break;
+    }
+
+    const edgeTime = batch[batch.length - 1].time - 1;
+    if (!Number.isFinite(edgeTime)) {
+      break;
+    }
+    if (edgeTime >= nextTo) {
+      throw new Error("Harvest data pagination did not advance");
+    }
+
+    nextTo = edgeTime;
+  }
+
+  return sawInvalidData ? { status: "invalid_data" } : { status: "no_data" };
+}
+
+/**
+ * 電力チェック本体を実行します。
+ *
+ * @param params - 実行パラメータ
+ * @returns 関数出力
+ */
+export async function runPowerCheck(params: {
+  simGroupId: string;
+  channelId: string;
+  tagName: string;
+  soracomClient: Pick<SoracomClient, "listAllSims" | "getHarvestDataPage">;
+  chatClient: PowerCheckChatClient;
+  now?: number;
+}): Promise<PowerCheckOutputs> {
+  const { simGroupId, channelId, tagName, soracomClient, chatClient } = params;
+  const allSims = await soracomClient.listAllSims();
+  const simsInGroup = allSims.filter((sim) => sim.groupId === simGroupId);
+
+  if (simsInGroup.length === 0) {
+    throw new Error(
+      t("soracom.errors.sim_group_sims_not_found", {
+        groupId: simGroupId,
+      }),
+    );
+  }
+
+  const activeSims = simsInGroup.filter((sim) => sim.status === "active");
+  if (activeSims.length === 0) {
+    throw new Error(
+      t("soracom.errors.sim_group_active_sims_not_found", {
+        groupId: simGroupId,
+        count: simsInGroup.length,
+      }),
+    );
+  }
+
+  const targetSims = filterPowerCheckTargetSims(
+    simsInGroup,
+    simGroupId,
+    tagName,
+  );
+  if (targetSims.length === 0) {
+    throw new Error(
+      t("soracom.errors.power_check_target_sims_not_found", {
+        groupId: simGroupId,
+        tagName,
+        count: activeSims.length,
+      }),
+    );
+  }
+
+  const now = params.now ?? Date.now();
+  const lookbackStart = now - POWER_CHECK_LOOKBACK_MS;
+  const results: PowerCheckSimResult[] = [];
+
+  for (const sim of targetSims) {
+    try {
+      const imsi = imsiSchema.parse(sim.imsi);
+
+      console.log(t("soracom.logs.fetching_power_data", { imsi }));
+
+      const resolution = await findLatestPowerSampleForSim(
+        soracomClient,
+        imsi,
+        lookbackStart,
+        now,
+      );
+
+      switch (resolution.status) {
+        case "ok":
+          results.push({
+            sim,
+            status: "ok",
+            sample: resolution.sample,
+          });
+          break;
+        case "no_data":
+          results.push({ sim, status: "no_data" });
+          break;
+        case "invalid_data":
+          results.push({ sim, status: "invalid_data" });
+          break;
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error
+        ? error.message
+        : String(error);
+      console.error(
+        `soracom_power_check sim error (${sim.imsi || sim.simId}):`,
+        errorMessage,
+      );
+      results.push({ sim, status: "failed" });
+    }
+  }
+
+  const failedCount = results.filter((result) => result.status === "failed")
+    .length;
+  if (failedCount === targetSims.length) {
+    throw new Error(t("soracom.errors.power_check_all_failed"));
+  }
+
+  const message = formatPowerCheckMessage(simGroupId, tagName, results);
+  const response = await chatClient.chat.postMessage({
+    channel: channelId,
+    text: message,
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      t("errors.api_call_failed", {
+        error: response.error ?? "chat.postMessage_failed",
+      }),
+    );
+  }
+
+  return {
+    processed_count: targetSims.length,
+    reported_count: results.filter((result) => result.status === "ok").length,
+    no_data_count: results.filter((result) => result.status === "no_data")
+      .length,
+    invalid_count: results.filter((result) => result.status === "invalid_data")
+      .length,
+    failed_count: failedCount,
+    message,
+  };
+}
+
 export default SlackFunction(
   SoracomPowerCheckFunctionDefinition,
   async ({ inputs, client, env }) => {
@@ -277,112 +486,14 @@ export default SlackFunction(
       );
 
       const soracomClient = createSoracomClientFromEnv(env);
-      const allSims = await soracomClient.listAllSims();
-      const simsInGroup = allSims.filter((sim) => sim.groupId === simGroupId);
-
-      if (simsInGroup.length === 0) {
-        throw new Error(
-          t("soracom.errors.sim_group_sims_not_found", {
-            groupId: simGroupId,
-          }),
-        );
-      }
-
-      const activeSims = simsInGroup.filter((sim) => sim.status === "active");
-      if (activeSims.length === 0) {
-        throw new Error(
-          t("soracom.errors.sim_group_active_sims_not_found", {
-            groupId: simGroupId,
-            count: simsInGroup.length,
-          }),
-        );
-      }
-
-      const targetSims = filterPowerCheckTargetSims(
-        simsInGroup,
-        simGroupId,
-        tagName,
-      );
-      if (targetSims.length === 0) {
-        throw new Error(
-          t("soracom.errors.power_check_target_sims_not_found", {
-            groupId: simGroupId,
-            tagName,
-            count: activeSims.length,
-          }),
-        );
-      }
-
-      const now = Date.now();
-      const lookbackStart = now - POWER_CHECK_LOOKBACK_MS;
-      const results: PowerCheckSimResult[] = [];
-
-      for (const sim of targetSims) {
-        try {
-          const imsi = imsiSchema.parse(sim.imsi);
-
-          console.log(t("soracom.logs.fetching_power_data", { imsi }));
-
-          const harvestData = await soracomClient.getHarvestData(
-            imsi,
-            lookbackStart,
-            now,
-          );
-          const resolution = resolveLatestPowerSample(harvestData.entries);
-
-          switch (resolution.status) {
-            case "ok":
-              results.push({
-                sim,
-                status: "ok",
-                sample: resolution.sample,
-              });
-              break;
-            case "no_data":
-              results.push({ sim, status: "no_data" });
-              break;
-            case "invalid_data":
-              results.push({ sim, status: "invalid_data" });
-              break;
-          }
-        } catch (error) {
-          const errorMessage = error instanceof Error
-            ? error.message
-            : String(error);
-          console.error(
-            `soracom_power_check sim error (${sim.imsi || sim.simId}):`,
-            errorMessage,
-          );
-          results.push({ sim, status: "failed" });
-        }
-      }
-
-      const failedCount = results.filter((result) => result.status === "failed")
-        .length;
-      if (failedCount === targetSims.length) {
-        throw new Error(t("soracom.errors.power_check_all_failed"));
-      }
-
-      const message = formatPowerCheckMessage(simGroupId, tagName, results);
-
-      await client.chat.postMessage({
-        channel: channelId,
-        text: message,
-      });
-
       return {
-        outputs: {
-          processed_count: targetSims.length,
-          reported_count: results.filter((result) => result.status === "ok")
-            .length,
-          no_data_count: results.filter((result) => result.status === "no_data")
-            .length,
-          invalid_count: results.filter((result) =>
-            result.status === "invalid_data"
-          ).length,
-          failed_count: failedCount,
-          message,
-        },
+        outputs: await runPowerCheck({
+          simGroupId,
+          channelId,
+          tagName,
+          soracomClient,
+          chatClient: client as unknown as PowerCheckChatClient,
+        }),
       };
     } catch (error) {
       const errorMessage = error instanceof Error

@@ -3,11 +3,14 @@ import type { SoracomSim } from "../../lib/soracom/mod.ts";
 import { t } from "../../lib/i18n/mod.ts";
 import {
   filterPowerCheckTargetSims,
+  findLatestPowerSampleForSim,
   formatPowerCheckMessage,
   maskPowerCheckImsiForDisplay,
   resolvePowerCheckDisplayName,
+  runPowerCheck,
   SoracomPowerCheckFunctionDefinition,
 } from "./mod.ts";
+import type { HarvestDataEntry } from "../../lib/soracom/mod.ts";
 
 const baseSim: SoracomSim = {
   simId: "8942310022000012345",
@@ -25,6 +28,17 @@ const baseSim: SoracomSim = {
   subscription: "plan-D",
   moduleType: "nano",
 };
+
+function createEntry(
+  time: number,
+  content: unknown,
+): HarvestDataEntry {
+  return {
+    time,
+    content,
+    contentType: "application/json",
+  };
+}
 
 Deno.test({
   name: "tag.name の部分一致で active SIM を抽出する",
@@ -176,5 +190,102 @@ Deno.test({
       definition.output_parameters?.properties?.invalid_count?.description,
       "壊れたデータの SIM 数",
     );
+  },
+});
+
+Deno.test({
+  name: "最新の有効な電力値が見つかった時点で古い Harvest ページ取得を打ち切る",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    let callCount = 0;
+    const requestedRanges: Array<{ from: number; to: number }> = [];
+    const resolution = await findLatestPowerSampleForSim(
+      {
+        getHarvestDataPage(
+          _imsi: string,
+          from: number,
+          to: number,
+          _sort: "asc" | "desc",
+          _limit: number,
+        ): Promise<HarvestDataEntry[]> {
+          callCount += 1;
+          requestedRanges.push({ from, to });
+
+          if (callCount === 1) {
+            return Promise.resolve(
+              Array.from(
+                { length: 1000 },
+                (_, index) => createEntry(5000 - index, { temperature: 20 }),
+              ),
+            );
+          }
+
+          return Promise.resolve([
+            createEntry(3999, { voltage: 12.7 }),
+            createEntry(3998, { temperature: 19 }),
+          ]);
+        },
+      },
+      "440101234567890",
+      1000,
+      5000,
+    );
+
+    assertEquals(callCount, 2);
+    assertEquals(requestedRanges[1]?.to, 4000);
+    assertEquals(resolution.status, "ok");
+    assertEquals(
+      resolution.status === "ok" ? resolution.sample.value : null,
+      12.7,
+    );
+  },
+});
+
+Deno.test({
+  name: "電力チェック本体は postMessage が失敗したらエラーにする",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  fn: async () => {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    let posted = false;
+    try {
+      await runPowerCheck({
+        simGroupId: "group-1",
+        channelId: "C12345678",
+        tagName: "電源",
+        now: 5000,
+        soracomClient: {
+          listAllSims(): Promise<SoracomSim[]> {
+            return Promise.resolve([baseSim]);
+          },
+          getHarvestDataPage(): Promise<HarvestDataEntry[]> {
+            return Promise.resolve([createEntry(4000, { voltage: 12.4 })]);
+          },
+        },
+        chatClient: {
+          chat: {
+            postMessage() {
+              posted = true;
+              return Promise.resolve({ ok: false, error: "channel_not_found" });
+            },
+          },
+        },
+      });
+    } catch (error) {
+      assertEquals(posted, true);
+      assertEquals(
+        error instanceof Error
+          ? error.message.includes("channel_not_found")
+          : false,
+        true,
+      );
+      return;
+    }
+
+    throw new Error("runPowerCheck should throw when postMessage fails");
   },
 });
