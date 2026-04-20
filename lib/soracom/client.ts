@@ -53,6 +53,7 @@ interface RawSoracomSessionStatus {
 
 interface RawSoracomSim {
   simId?: string;
+  name?: string;
   imsi?: string;
   msisdn?: string;
   status?: string;
@@ -186,6 +187,7 @@ export function normalizeSoracomSim(rawSim: RawSoracomSim): SoracomSim {
 
   return {
     simId: rawSim.simId || "",
+    name: rawSim.name || "",
     imsi: rawSim.imsi ||
       rawSim.sessionStatus?.imsi ||
       subscriber?.imsi ||

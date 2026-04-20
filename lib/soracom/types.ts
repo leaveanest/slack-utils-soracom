@@ -22,6 +22,8 @@ export interface SoracomAuthResponse {
 export interface SoracomSim {
   /** SIM ID */
   simId: string;
+  /** 表示名 */
+  name?: string;
   /** IMSI */
   imsi: string;
   /** MSISDN（電話番号） */

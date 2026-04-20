@@ -1,5 +1,6 @@
 import { Manifest } from "deno-slack-sdk/mod.ts";
 import { SoracomGetHarvestDataFunctionDefinition } from "./functions/soracom_get_harvest_data/mod.ts";
+import { SoracomPowerCheckFunctionDefinition } from "./functions/soracom_power_check/mod.ts";
 import { SoracomListSoraCamDevicesFunctionDefinition } from "./functions/soracom_list_soracam_devices/mod.ts";
 import { SoracomExportSoraCamImageFunctionDefinition } from "./functions/soracom_export_soracam_image/mod.ts";
 import { SoracomExportAllSoraCamImagesFunctionDefinition } from "./functions/soracom_export_all_soracam_images/mod.ts";
@@ -11,6 +12,7 @@ import { Co2AirQualityAnomalyAlertFunctionDefinition } from "./functions/co2_air
 import { GpsMultiunitReportFunctionDefinition } from "./functions/gps_multiunit_report/mod.ts";
 import { GpsMultiunitGeofenceReportFunctionDefinition } from "./functions/gps_multiunit_geofence_report/mod.ts";
 import SoracomGetHarvestDataWorkflow from "./workflows/soracom_get_harvest_data_workflow.ts";
+import SoracomPowerCheckWorkflow from "./workflows/soracom_power_check_workflow.ts";
 import SoracomListSoraCamDevicesWorkflow from "./workflows/soracom_list_soracam_devices_workflow.ts";
 import SoracomExportSoraCamImageWorkflow from "./workflows/soracom_export_soracam_image_workflow.ts";
 import SoracomExportAllSoraCamImagesWorkflow from "./workflows/soracom_export_all_soracam_images_workflow.ts";
@@ -37,6 +39,7 @@ export default Manifest({
   workflows: [
     // Harvest Data
     SoracomGetHarvestDataWorkflow,
+    SoracomPowerCheckWorkflow,
     // ソラカメ
     SoracomListSoraCamDevicesWorkflow,
     SoracomExportSoraCamImageWorkflow,
@@ -58,6 +61,7 @@ export default Manifest({
   functions: [
     // Harvest Data
     SoracomGetHarvestDataFunctionDefinition,
+    SoracomPowerCheckFunctionDefinition,
     // ソラカメ
     SoracomListSoraCamDevicesFunctionDefinition,
     SoracomExportSoraCamImageFunctionDefinition,

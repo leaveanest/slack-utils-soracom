@@ -22,6 +22,7 @@ export {
   resolveAirQualityCriteria,
   summarizeAirQualityEntries,
 } from "./air_quality.ts";
+export { extractPowerSample, resolveLatestPowerSample } from "./power.ts";
 export type {
   AirQualityBucketSummary,
   AirQualityCriteria,
@@ -34,6 +35,11 @@ export type {
   AirQualitySummary,
   AirQualitySummaryDelta,
 } from "./air_quality.ts";
+export type {
+  PowerMetricKind,
+  PowerSample,
+  PowerSampleResolution,
+} from "./power.ts";
 export {
   bucketGpsMultiunitSamples,
   buildGpsMultiunitBucketRanges,
