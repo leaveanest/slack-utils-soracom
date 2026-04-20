@@ -187,7 +187,7 @@ export function normalizeSoracomSim(rawSim: RawSoracomSim): SoracomSim {
 
   return {
     simId: rawSim.simId || "",
-    name: rawSim.name || "",
+    ...(rawSim.name ? { name: rawSim.name } : {}),
     imsi: rawSim.imsi ||
       rawSim.sessionStatus?.imsi ||
       subscriber?.imsi ||
