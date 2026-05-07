@@ -46,6 +46,7 @@ export const ALL_SORACAM_EXPORT_JOB_CLAIM_SETTLE_MS = 750;
 export const ALL_SORACAM_EXPORT_TASK_CLAIM_SETTLE_MS = 750;
 export const ALL_SORACAM_EXPORT_CREATION_WAIT_RETRIES = 20;
 export const ALL_SORACAM_EXPORT_CREATION_WAIT_INTERVAL_MS = 250;
+export const ALL_SORACAM_EXPORT_STALE_STARTING_JOB_MS = 60_000;
 export const ALL_SORACAM_EXPORT_TASK_RETRY_DELAY_MS = 3_000;
 export const ALL_SORACAM_EXPORT_STALE_UNSTARTED_TASK_MS = 60_000;
 export const ALL_SORACAM_EXPORT_MAX_TASK_RETRIES = 2;
@@ -623,6 +624,19 @@ function withJobStatus(
     status,
     updatedAt: new Date(now).toISOString(),
   };
+}
+
+function isStaleStartingAllSoraCamImageExportJob(
+  job: SoracomAllSoraCamImageExportJob,
+  now: number,
+): boolean {
+  if (job.status !== "starting") {
+    return false;
+  }
+
+  const updatedAt = Date.parse(job.updatedAt);
+  return Number.isFinite(updatedAt) &&
+    now - updatedAt >= ALL_SORACAM_EXPORT_STALE_STARTING_JOB_MS;
 }
 
 function sleep(ms: number): Promise<void> {
@@ -1629,6 +1643,18 @@ export async function processAllSoraCamImageExport(params: {
       params.channelId,
       delayFn,
     );
+
+    if (
+      job?.status === "starting" &&
+      isStaleStartingAllSoraCamImageExportJob(job, nowFn())
+    ) {
+      await deleteAllSoraCamImageExportTasksByJob(
+        params.client,
+        buildAllSoraCamImageExportJobKey(params.channelId),
+      );
+      await deleteAllSoraCamImageExportJob(params.client, params.channelId);
+      job = null;
+    }
   }
 
   if (job === null || job.status === "completed") {
