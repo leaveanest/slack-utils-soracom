@@ -17,6 +17,7 @@ import type {
 import {
   ALL_SORACAM_EXPORT_CLEANUP_TASK_KEY,
   ALL_SORACAM_EXPORT_PARALLELISM,
+  ALL_SORACAM_EXPORT_STALE_STARTING_JOB_MS,
   ALL_SORACAM_EXPORT_STALE_UNSTARTED_TASK_MS,
   ALL_SORACAM_EXPORT_TASK_RETRY_DELAY_MS,
   ALL_SORACAM_EXPORT_TRIGGER_DELAY_MS,
@@ -506,6 +507,73 @@ Deno.test("親 run は全ソラカメ一覧取得後に先頭バッチを起動�
   );
   assertEquals(tasks.at(-1)?.status, "queued");
   assertEquals(tasks.at(-1)?.continuationTriggerId, undefined);
+});
+
+Deno.test("古い初期化中の全台画像スナップショットジョブは破棄して新規ジョブを作成できる", async () => {
+  await prepareLocale("ja");
+
+  const now = 1700000400000;
+  const staleUpdatedAt = new Date(
+    now - ALL_SORACAM_EXPORT_STALE_STARTING_JOB_MS - 1,
+  ).toISOString();
+  const devices = createDevices(1);
+  const { client, posts, updates, triggerCreates } = createExportAllClient();
+  const { soracomClient, listDeviceCalls } = createSoracomClientMock({
+    devices,
+  });
+
+  await client.apps.datastore.put({
+    datastore: "soracom_all_soracam_image_export_jobs",
+    item: {
+      job_key: "C123",
+      channel_id: "C123",
+      message_ts: "__pending__",
+      total_device_count: 0,
+      claim_id: "stale-claim",
+      status: "starting",
+      created_at: staleUpdatedAt,
+      updated_at: staleUpdatedAt,
+    },
+  });
+  await client.apps.datastore.put({
+    datastore: "soracom_all_soracam_image_export_tasks",
+    item: {
+      task_key: "C123:old-cam",
+      job_key: "C123",
+      channel_id: "C123",
+      device_id: "old-cam",
+      device_name: "Old Camera",
+      sort_index: 0,
+      export_id: "",
+      status: "queued",
+      image_url: "",
+      retry_count: 0,
+      created_at: staleUpdatedAt,
+      updated_at: staleUpdatedAt,
+    },
+  });
+
+  const result = await processAllSoraCamImageExport({
+    soracomClient,
+    client: client as never,
+    channelId: "C123",
+    now,
+    delayFn: () => Promise.resolve(),
+  });
+
+  const job = await getAllSoraCamImageExportJob(client as never, "C123");
+  const tasks = await listAllSoraCamImageExportTasks(client as never, "C123");
+
+  assertEquals(listDeviceCalls.length, 1);
+  assertEquals(posts.length, 1);
+  assertEquals(updates.length, 1);
+  assertEquals(triggerCreates.length, ALL_SORACAM_EXPORT_PARALLELISM);
+  assertEquals(result.deviceCount, 1);
+  assertEquals(result.processingCount, ALL_SORACAM_EXPORT_PARALLELISM);
+  assertEquals(job?.status, "pending");
+  assertEquals(job?.messageTs, "1742281200.000100");
+  assertEquals(tasks.length, 1);
+  assertEquals(tasks[0]?.deviceId, "cam-1");
 });
 
 Deno.test("トリガー開始時刻は trigger 作成時点を基準に計算される", async () => {
