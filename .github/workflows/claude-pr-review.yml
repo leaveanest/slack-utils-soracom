@@ -38,7 +38,7 @@ jobs:
           echo "sha=$PR_SHA" >> "$GITHUB_OUTPUT"
 
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           # PRのHEADをチェックアウト（イベントタイプに応じて取得方法が異なる）
